@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <com.google.android.material.appbar.AppBarLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:theme="@style/AppTheme.AppBarOverlay">
+
+            <androidx.appcompat.widget.Toolbar
+                android:id="@+id/toolbar"
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:background="@color/colorPrimary"
+                app:popupTheme="@style/AppTheme.PopupOverlay" />
+
+        </com.google.android.material.appbar.AppBarLayout>
+
+        <include
+            layout="@layout/main_map"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="?attr/actionBarSize" />
+
+        <LinearLayout
+            android:id="@+id/bottom_bar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/bottom_bar_bg"
+            android:orientation="horizontal"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:elevation="8dp">
+
+            <LinearLayout
+                android:id="@+id/btnWrapStart"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+                <ImageButton
+                    android:id="@+id/faBtnStart"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/round_btn_bg"
+                    android:contentDescription="启动"
+                    android:padding="9dp"
+                    app:srcCompat="@drawable/ic_position"
+                    app:tint="#0288D1" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="启动"
+                    android:textSize="11sp"
+                    android:textColor="#37474F"
+                    android:layout_marginTop="3dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btnWrapRoute"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+                <ImageButton
+                    android:id="@+id/faBtnRoute"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/round_btn_bg"
+                    android:contentDescription="绘制路线"
+                    android:padding="9dp"
+                    app:srcCompat="@drawable/ic_move"
+                    app:tint="#0288D1" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="画路线"
+                    android:textSize="11sp"
+                    android:textColor="#37474F"
+                    android:layout_marginTop="3dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btnWrapLoad"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+                <ImageButton
+                    android:id="@+id/faBtnLoadRoute"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="@drawable/round_btn_bg"
+                    android:contentDescription="选择路线"
+                    android:padding="9dp"
+                    app:srcCompat="@android:drawable/ic_menu_recent_history"
+                    app:tint="#0288D1" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="选路线"
+                    android:textSize="11sp"
+                    android:textColor="#37474F"
+                    android:layout_marginTop="3dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/search_linear"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#ddffffff"
+            android:visibility="gone"
+            android:layout_marginTop="?attr/actionBarSize">
+            <ListView
+                android:id="@+id/search_list_view"
+                android:layout_width="match_parent"
+                android:layout_margin="10dp"
+                android:layout_height="wrap_content">
+            </ListView>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/search_history_linear"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#ddffffff"
+            android:visibility="gone"
+            android:layout_marginTop="?attr/actionBarSize">
+            <ListView
+                android:id="@+id/search_history_list_view"
+                android:layout_width="match_parent"
+                android:layout_margin="10dp"
+                android:layout_height="wrap_content">
+            </ListView>
+        </LinearLayout>
+
+        <include
+            layout="@layout/route_panel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom" />
+
+    </FrameLayout>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
