@@ -5,7 +5,8 @@
     android:layout_height="match_parent"
     android:layout_gravity="center_vertical"
     android:gravity="center_vertical"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:background="#0D1117">
 
     <LinearLayout
         android:id="@+id/search_linear"

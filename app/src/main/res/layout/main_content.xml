@@ -19,8 +19,9 @@
                 android:id="@+id/toolbar"
                 android:layout_width="match_parent"
                 android:layout_height="?attr/actionBarSize"
-                android:background="@color/colorPrimary"
-                app:popupTheme="@style/AppTheme.PopupOverlay" />
+                android:background="#0F2027"
+                app:popupTheme="@style/AppTheme.PopupOverlay"
+                app:titleTextColor="#FFFFFF" />
 
         </com.google.android.material.appbar.AppBarLayout>
 
@@ -65,7 +66,7 @@
                     android:layout_height="wrap_content"
                     android:text="启动"
                     android:textSize="11sp"
-                    android:textColor="#37474F"
+                    android:textColor="#E0F7FA"
                     android:layout_marginTop="3dp" />
             </LinearLayout>
 
@@ -90,7 +91,7 @@
                     android:layout_height="wrap_content"
                     android:text="画路线"
                     android:textSize="11sp"
-                    android:textColor="#37474F"
+                    android:textColor="#E0F7FA"
                     android:layout_marginTop="3dp" />
             </LinearLayout>
 
@@ -115,7 +116,7 @@
                     android:layout_height="wrap_content"
                     android:text="选路线"
                     android:textSize="11sp"
-                    android:textColor="#37474F"
+                    android:textColor="#E0F7FA"
                     android:layout_marginTop="3dp" />
             </LinearLayout>
 
@@ -125,7 +126,7 @@
             android:id="@+id/search_linear"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#ddffffff"
+            android:background="#E61A2326"
             android:visibility="gone"
             android:layout_marginTop="?attr/actionBarSize">
             <ListView
@@ -140,7 +141,7 @@
             android:id="@+id/search_history_linear"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="#ddffffff"
+            android:background="#E61A2326"
             android:visibility="gone"
             android:layout_marginTop="?attr/actionBarSize">
             <ListView

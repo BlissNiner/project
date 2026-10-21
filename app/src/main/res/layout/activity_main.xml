@@ -18,10 +18,10 @@
         android:layout_width="280dp"
         android:layout_height="match_parent"
         android:layout_gravity="start"
-        android:background="#1A2326"
+        android:background="#0D1117"
         app:headerLayout="@layout/nav_header"
-        app:itemIconTint="#80B3E5FC"
-        app:itemTextColor="#E0F7FA"
+        app:itemIconTint="#4FC3F7"
+        app:itemTextColor="#FFFFFF"
         app:itemBackground="@drawable/nav_item_selector"
         app:menu="@menu/menu_nav" />
 

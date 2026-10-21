@@ -646,8 +646,15 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     if (bdLocation == null || mMapView == null) {// mapview 销毁后不在处理新接收的位置
                         return;
                     }
-                    // 过滤无效定位：经纬度为0通常是定位失败，会把蓝点跳到非洲赤道(0,0)
-                    if (bdLocation.getLatitude() == 0.0 && bdLocation.getLongitude() == 0.0) {
+                    // 过滤无效定位：定位失败/经纬度为0会把蓝点跳到非洲赤道(0,0)
+                    double locLat = bdLocation.getLatitude();
+                    double locLon = bdLocation.getLongitude();
+                    int locType = bdLocation.getLocType();
+                    // 百度定位成功类型：61(GPS), 161(网络), 66(离线), 68, 512, 505
+                    boolean locOk = (locType == 61 || locType == 161 || locType == 66
+                            || locType == 68 || locType == 512 || locType == 505)
+                            && locLat != 0.0 && locLon != 0.0;
+                    if (!locOk) {
                         return;
                     }
 
@@ -731,7 +738,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         //可选，默认false，设置是否需要POI结果，可以在BDLocation.getPoiList里得到
         locationOption.setIsNeedLocationPoiList(false);
         //可选，默认false，设置是否开启Gps定位
-        //locationOption.setOpenGps(true);
+        locationOption.setOpenGps(true);
         locationOption.setOpenGnss(true);
         //可选，默认false，设置定位时是否需要海拔信息，默认不需要，除基础定位版本都可用
         locationOption.setIsNeedAltitude(false);
@@ -752,7 +759,13 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         });
 
         ImageButton curPosBtn = this.findViewById(R.id.cur_position);
-        curPosBtn.setOnClickListener(v -> resetMapSafe());
+        curPosBtn.setOnClickListener(v -> {
+            // 强制请求一次定位，再复位地图
+            if (mLocClient != null) {
+                mLocClient.requestLocation();
+            }
+            resetMapSafe();
+        });
 
         ImageButton zoomInBtn = this.findViewById(R.id.zoom_in);
         zoomInBtn.setOnClickListener(v -> mBaiduMap.animateMapStatus(MapStatusUpdateFactory.zoomIn()));
