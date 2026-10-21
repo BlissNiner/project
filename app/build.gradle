@@ -43,13 +43,9 @@ android {
 
     buildTypes {
         release {
-            // Enables code shrinking, obfuscation, and optimization for only
-            // your project's release build type.
-            minifyEnabled = true
-
-            // Enables resource shrinking, which is performed by the
-            // Android Gradle plugin.
-            shrinkResources = true
+            // 高德SDK重度依赖反射与原生库，R8混淆/资源裁剪会破坏其运行，release暂不启用
+            minifyEnabled = false
+            shrinkResources = false
 
             // Includes the default ProGuard rules files that are packaged with
             // the Android Gradle plugin. To learn more, go to the section about
