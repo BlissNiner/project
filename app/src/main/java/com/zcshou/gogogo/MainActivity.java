@@ -368,8 +368,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         });
 
         searchView = (SearchView) searchItem.getActionView();
-        searchView.setIconified(false);// 设置searchView处于展开状态
-        searchView.onActionViewExpanded();// 当展开无输入内容的时候，没有关闭的图标
+        searchView.setIconified(true); // 默认折叠，点击右上角搜索图标才展开
         searchView.setIconifiedByDefault(true);//默认为true在框内，设置false则在框外
         searchView.setSubmitButtonEnabled(false);//显示提交按钮
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
@@ -470,15 +469,12 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
                 startActivity(intent);
             } else if (id == R.id.nav_dev) {
-                if (!GoUtils.isDeveloperOptionsEnabled(this)) {
-                    GoUtils.DisplayToast(this, getResources().getString(R.string.app_error_dev));
-                } else {
-                    try {
-                        Intent intent = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS);
-                        startActivity(intent);
-                    } catch (Exception e) {
-                        GoUtils.DisplayToast(this, getResources().getString(R.string.app_error_dev));
-                    }
+                // 直接跳转到手机系统的开发者选项设置页
+                try {
+                    Intent intent = new Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS);
+                    startActivity(intent);
+                } catch (Exception e) {
+                    GoUtils.DisplayToast(this, "无法打开开发者选项，请到系统设置中手动开启");
                 }
             } else if (id == R.id.nav_update) {
                 GoUtils.DisplayToast(this, "当前已是最新版本");
@@ -508,6 +504,12 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         MapStatus.Builder initBuilder = new MapStatus.Builder();
         initBuilder.target(mMarkLatLngMap).zoom(18.0f);
         mBaiduMap.setMapStatus(MapStatusUpdateFactory.newMapStatus(initBuilder.build()));
+        // 打开即显示蓝点（真实定位成功后会自动覆盖），保证定位图层可见
+        MyLocationData initLoc = new MyLocationData.Builder()
+                .latitude(mMarkLatLngMap.latitude)
+                .longitude(mMarkLatLngMap.longitude)
+                .build();
+        mBaiduMap.setMyLocationData(initLoc);
         mBaiduMap.setOnMapTouchListener(event -> {
 
         });
@@ -744,7 +746,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         });
 
         ImageButton curPosBtn = this.findViewById(R.id.cur_position);
-        curPosBtn.setOnClickListener(v -> resetMap());
+        curPosBtn.setOnClickListener(v -> resetMapSafe());
 
         ImageButton zoomInBtn = this.findViewById(R.id.zoom_in);
         zoomInBtn.setOnClickListener(v -> mBaiduMap.animateMapStatus(MapStatusUpdateFactory.zoomIn()));
@@ -845,6 +847,22 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         MapStatus.Builder builder = new MapStatus.Builder();
         builder.target(new LatLng(targetLat, targetLng)).zoom(18.0f);
         mBaiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+    }
+
+    // 复位：兜底异常保护（保证当前位置按钮必响应）
+    private void resetMapSafe() {
+        try {
+            resetMap();
+        } catch (Exception e) {
+            XLog.e("resetMap error: " + e.getMessage());
+            GoUtils.DisplayToast(this, "定位失败，已回退到默认位置");
+            double[] bd = MapUtils.wgs2bd09(ServiceGo.DEFAULT_LNG, ServiceGo.DEFAULT_LAT);
+            mBaiduMap.clear();
+            mMarkLatLngMap = new LatLng(bd[1], bd[0]);
+            MapStatus.Builder builder = new MapStatus.Builder();
+            builder.target(mMarkLatLngMap).zoom(18.0f);
+            mBaiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+        }
     }
 
     // 在地图上显示位置

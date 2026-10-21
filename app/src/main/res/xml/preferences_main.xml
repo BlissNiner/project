@@ -98,12 +98,5 @@
             app:key="setting_version"
             app:title="@string/setting_version"
             app:iconSpaceReserved="false"/>
-
-        <Preference
-            app:key="setting_author"
-            app:title="@string/setting_author"
-            app:defaultValue="@string/app_author"
-            app:summary="@string/app_author"
-            app:iconSpaceReserved="false"/>
     </PreferenceCategory>
 </PreferenceScreen>
