@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 侧边菜单文字颜色：未选中纯白(高对比)，选中亮蓝 -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true" android:color="#80D8FF" />
+    <item android:state_selected="true" android:color="#80D8FF" />
+    <item android:color="#FFFFFF" />
+</selector>

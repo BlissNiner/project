@@ -10,6 +10,15 @@
     </style>
 
     <!-- 无ActionBar -->
+    <!-- 侧边抽屉主题：深色底 + 高对比文字，分组标题也改为浅色，避免看不清 -->
+    <style name="NavDrawerTheme" parent="ThemeOverlay.AppCompat.Dark">
+        <item name="colorPrimary">#0B1020</item>
+        <item name="colorPrimaryDark">#0B1020</item>
+        <item name="colorAccent">#4FC3F7</item>
+        <item name="android:textColorSecondary">#C8FFFFFF</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+    </style>
+
     <style name="AppTheme.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
