@@ -2,9 +2,8 @@ package com.zcshou.gogogo;
 
 import android.app.Application;
 
-import com.baidu.location.LocationClient;
-import com.baidu.mapapi.CoordType;
-import com.baidu.mapapi.SDKInitializer;
+import com.amap.api.location.AMapLocationClient;
+import com.amap.api.maps.MapsInitializer;
 
 import com.elvishew.xlog.LogConfiguration;
 import com.elvishew.xlog.LogLevel;
@@ -29,15 +28,17 @@ public class GoApplication extends Application {
 
         initXlog();
 
-        // 百度地图 7.5 开始，要求必须同意隐私政策，默认为false
-        SDKInitializer.setAgreePrivacy(this, true);
-        // 百度定位 7.5 开始，要求必须同意隐私政策，默认为false(官方说可以统一为以上接口，但实际测试并不行，定位还是需要单独设置)
-        LocationClient.setAgreePrivacy(true);
-        SDKInitializer.setApiKey(BuildConfig.MAPS_API_KEY);
+        // 高德地图/定位 SDK 隐私合规声明（必须）
+        AMapLocationClient.updatePrivacyShow(this, true, true);
+        AMapLocationClient.updatePrivacyAgree(this, true);
+        // 设置高德 Key（从 local.properties 注入 BuildConfig）
+        MapsInitializer.setApiKey(BuildConfig.MAPS_API_KEY);
         // 在使用 SDK 各组间之前初始化 context 信息，传入 ApplicationContext
-        SDKInitializer.initialize(this);
-
-        SDKInitializer.setCoordType(CoordType.BD09LL);
+        try {
+            MapsInitializer.initialize(this);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     /**

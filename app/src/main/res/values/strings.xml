@@ -123,7 +123,7 @@
     <string name="label_latitude">纬度</string>
     <string name="input_position_ok">传送</string>
     <string name="input_position_cancel">取消</string>
-    <string name="input_position_baidu">BD09 坐标系</string>
+    <string name="input_position_baidu">高德坐标系(GCJ02)</string>
     <string name="input_position_gps">GPS 坐标系</string>
     <string name="input_button">输入位置</string>
     <string name="cur_position">返回当前位置</string>

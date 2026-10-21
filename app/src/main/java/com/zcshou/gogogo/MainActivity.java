@@ -55,35 +55,32 @@ import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.preference.PreferenceManager;
 
-import com.baidu.location.BDAbstractLocationListener;
-import com.baidu.location.BDLocation;
-import com.baidu.location.LocationClient;
-import com.baidu.location.LocationClientOption;
-import com.baidu.mapapi.SDKInitializer;
-import com.baidu.mapapi.map.BaiduMap;
-import com.baidu.mapapi.map.BitmapDescriptor;
-import com.baidu.mapapi.map.BitmapDescriptorFactory;
-import com.baidu.mapapi.map.InfoWindow;
-import com.baidu.mapapi.map.MapPoi;
-import com.baidu.mapapi.map.MapStatus;
-import com.baidu.mapapi.map.MapStatusUpdate;
-import com.baidu.mapapi.map.MapStatusUpdateFactory;
-import com.baidu.mapapi.map.MapView;
-import com.baidu.mapapi.map.MarkerOptions;
-import com.baidu.mapapi.map.OverlayOptions;
-import com.baidu.mapapi.map.PolylineOptions;
-import com.baidu.mapapi.map.MyLocationConfiguration;
-import com.baidu.mapapi.map.MyLocationData;
-import com.baidu.mapapi.model.LatLng;
-import com.baidu.mapapi.search.core.SearchResult;
-import com.baidu.mapapi.search.geocode.GeoCodeResult;
-import com.baidu.mapapi.search.geocode.GeoCoder;
-import com.baidu.mapapi.search.geocode.OnGetGeoCoderResultListener;
-import com.baidu.mapapi.search.geocode.ReverseGeoCodeOption;
-import com.baidu.mapapi.search.geocode.ReverseGeoCodeResult;
-import com.baidu.mapapi.search.sug.SuggestionResult;
-import com.baidu.mapapi.search.sug.SuggestionSearch;
-import com.baidu.mapapi.search.sug.SuggestionSearchOption;
+import com.amap.api.location.AMapLocation;
+import com.amap.api.location.AMapLocationClient;
+import com.amap.api.location.AMapLocationClientOption;
+import com.amap.api.location.AMapLocationListener;
+import com.amap.api.maps.AMap;
+import com.amap.api.maps.CameraUpdate;
+import com.amap.api.maps.CameraUpdateFactory;
+import com.amap.api.maps.MapView;
+import com.amap.api.maps.model.BitmapDescriptor;
+import com.amap.api.maps.model.BitmapDescriptorFactory;
+import com.amap.api.maps.model.CameraPosition;
+import com.amap.api.maps.model.LatLng;
+import com.amap.api.maps.model.Marker;
+import com.amap.api.maps.model.MarkerOptions;
+import com.amap.api.maps.model.Poi;
+import com.amap.api.maps.model.PolylineOptions;
+import com.amap.api.services.core.AMapException;
+import com.amap.api.services.core.LatLonPoint;
+import com.amap.api.services.geocoder.GeocodeResult;
+import com.amap.api.services.geocoder.GeocodeSearch;
+import com.amap.api.services.geocoder.RegeocodeAddress;
+import com.amap.api.services.geocoder.RegeocodeQuery;
+import com.amap.api.services.geocoder.RegeocodeResult;
+import com.amap.api.services.help.Inputtips;
+import com.amap.api.services.help.InputtipsQuery;
+import com.amap.api.services.help.Tip;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -133,10 +130,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     public final static BitmapDescriptor mMapIndicator = BitmapDescriptorFactory.fromResource(R.drawable.icon_gcoding);
     public static String mCurrentCity = null;
     private MapView mMapView;
-    private static BaiduMap mBaiduMap = null;
-    private static LatLng mMarkLatLngMap = new LatLng(35.3626353, 116.5810618); // 当前标记的地图点(默认山东理工职业学院操场)
+    private static AMap mAMap = null;
+    private static LatLng mMarkLatLngMap = new LatLng(35.3569754, 116.5744746); // 当前标记的地图点(默认山东理工职业学院操场, GCJ02)
     private static String mMarkName = null;
-    private GeoCoder mGeoCoder;
+    private GeocodeSearch mGeocodeSearch;
     private SensorManager mSensorManager;
     private Sensor mSensorAccelerometer;
     private Sensor mSensorMagnetic;
@@ -145,14 +142,20 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private final float[] mR = new float[9];//旋转矩阵，用来保存磁场和加速度的数据
     private final float[] mDirectionValues = new float[3];//模拟方向传感器的数据（原始数据为弧度）
     /************** 定位 *****************/
-    private LocationClient mLocClient = null;
-    private double mCurrentLat = 0.0;       // 当前位置的百度纬度
-    private double mCurrentLon = 0.0;       // 当前位置的百度经度
+    private AMapLocationClient mLocClient = null;
+    private double mCurrentLat = 0.0;       // 当前位置的纬度(GCJ02)
+    private double mCurrentLon = 0.0;       // 当前位置的经度(GCJ02)
     private float mCurrentDirection = 0.0f;
     private boolean isFirstLoc = true; // 是否首次定位
     private boolean isMockServStart = false;
     private ServiceGo.ServiceGoBinder mServiceBinder;
-    private BitmapDescriptor mLocIcon = null;   // 小尺寸定位蓝点图标
+    private static BitmapDescriptor mLocIcon = null;   // 小尺寸定位蓝点图标
+    private static Marker mPosMarker = null;             // 当前位置蓝点Marker
+    private static Marker mMarkInfoMarker = null;         // 当前标记POI的marker（用于信息气泡）
+    private View mPoiView = null;                         // POI信息气泡视图
+    private TextView mPoiAddress = null;
+    private TextView mPoiLongitude = null;
+    private TextView mPoiLatitude = null;
     private ServiceConnection mConnection;
     private ImageButton mButtonStart;
     private View mBottomBar;   // 底部三按钮工具条
@@ -171,7 +174,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             mRouteProgressHandler.postDelayed(this, 1000);
         }
     };
-    private final List<LatLng> mRouteLatLngList = new ArrayList<>();  // 采集到的路线点（bd09）
+    private final List<LatLng> mRouteLatLngList = new ArrayList<>();  // 采集到的路线点（gcj02）
     private boolean mRouteEditMode = false;                          // 是否处于路线采集模式
     private boolean mRoutePendingStart = false;                      // 服务连接后需启动路线跟随
     private static final int ROUTE_MAX_POINTS = 300;                 // 路线点上限
@@ -190,7 +193,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private ListView mSearchHistoryList;
     private LinearLayout mHistoryLayout;
     private MenuItem searchItem;
-    private SuggestionSearch mSuggestionSearch;
+    private Inputtips mInputtips;
     /*============================== 更新 相关 ==============================*/
     private DownloadManager mDownloadManager = null;
     private long mDownloadId;
@@ -303,13 +306,15 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mSensorManager.unregisterListener(this);
 
         // 退出时销毁定位
-        mLocClient.stop();
-        // 关闭定位图层
-        mBaiduMap.setMyLocationEnabled(false);
-        mMapView.onDestroy();
-
-        //poi search destroy
-        mSuggestionSearch.destroy();
+        if (mLocClient != null) {
+            mLocClient.stopLocation();
+            mLocClient.onDestroy();
+            mLocClient = null;
+        }
+        if (mMapView != null) {
+            mMapView.onDestroy();
+            mMapView = null;
+        }
 
         //close db
         mLocationHistoryDB.close();
@@ -375,11 +380,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 try {
-                    SuggestionSearchOption searchOpt = new SuggestionSearchOption().keyword(query);
-                    if (mCurrentCity != null && !mCurrentCity.isEmpty()) {
-                        searchOpt.city(mCurrentCity);
-                    }
-                    mSuggestionSearch.requestSuggestion(searchOpt);
+                    InputtipsQuery queryObj = new InputtipsQuery(query, mCurrentCity);
+                    queryObj.setCityLimit(false);
+                    mInputtips = new Inputtips(MainActivity.this, queryObj);
+                    mInputtips.setInputtipsListener(MainActivity.this::onInputtipsResult);
+                    mInputtips.requestInputtipsAsyn();
                     //搜索历史 插表参数
                     ContentValues contentValues = new ContentValues();
                     contentValues.put(DataBaseHistorySearch.DB_COLUMN_KEY, query);
@@ -388,7 +393,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     contentValues.put(DataBaseHistorySearch.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
 
                     DataBaseHistorySearch.saveHistorySearch(mSearchHistoryDB, contentValues);
-                    mBaiduMap.clear();
+                    clearMap();
                     mSearchLayout.setVisibility(View.INVISIBLE);
                 } catch (Exception e) {
                     GoUtils.DisplayToast(MainActivity.this, getResources().getString(R.string.app_error_search));
@@ -406,11 +411,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
                 if (newText != null && !newText.isEmpty()) {
                     try {
-                        SuggestionSearchOption searchOpt2 = new SuggestionSearchOption().keyword(newText);
-                        if (mCurrentCity != null && !mCurrentCity.isEmpty()) {
-                            searchOpt2.city(mCurrentCity);
-                        }
-                        mSuggestionSearch.requestSuggestion(searchOpt2);
+                        InputtipsQuery queryObj2 = new InputtipsQuery(newText, mCurrentCity);
+                        queryObj2.setCityLimit(false);
+                        mInputtips = new Inputtips(MainActivity.this, queryObj2);
+                        mInputtips.setInputtipsListener(MainActivity.this::onInputtipsResult);
+                        mInputtips.requestInputtipsAsyn();
                     } catch (Exception e) {
                         GoUtils.DisplayToast(MainActivity.this, getResources().getString(R.string.app_error_search));
                         XLog.d(getResources().getString(R.string.app_error_search));
@@ -498,24 +503,25 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private void initMap() {
         // 地图初始化
         mMapView = findViewById(R.id.bdMapView);
-        mMapView.showZoomControls(false);
-        mBaiduMap = mMapView.getMap();
-        mBaiduMap.setMapType(BaiduMap.MAP_TYPE_NORMAL);
-        mBaiduMap.setMyLocationEnabled(true);
+        mAMap = mMapView.getMap();
+        mAMap.setMapType(AMap.MAP_TYPE_NORMAL);
+        // 隐藏右下角缩放控件
+        mAMap.getUiSettings().setZoomControlsEnabled(false);
         // 地图初始定位到默认位置（山东理工职业学院操场）
-        MapStatus.Builder initBuilder = new MapStatus.Builder();
-        initBuilder.target(mMarkLatLngMap).zoom(18.0f);
-        mBaiduMap.setMapStatus(MapStatusUpdateFactory.newMapStatus(initBuilder.build()));
-        // 打开即显示蓝点（真实定位成功后会自动覆盖），保证定位图层可见
-        MyLocationData initLoc = new MyLocationData.Builder()
-                .latitude(mMarkLatLngMap.latitude)
-                .longitude(mMarkLatLngMap.longitude)
-                .build();
-        mBaiduMap.setMyLocationData(initLoc);
-        mBaiduMap.setOnMapTouchListener(event -> {
-
+        CameraUpdate initCu = CameraUpdateFactory.newCameraPosition(
+                new CameraPosition(mMarkLatLngMap, 18f, 0, 0));
+        mAMap.moveCamera(initCu);
+        // 打开即显示当前位置蓝点（真实定位成功后自动更新）
+        if (mLocIcon == null) {
+            mLocIcon = createLocIcon();
+        }
+        mPosMarker = mAMap.addMarker(new MarkerOptions()
+                .position(mMarkLatLngMap)
+                .icon(mLocIcon)
+                .anchor(0.5f, 0.5f));
+        mAMap.setOnMapTouchListener(motionEvent -> {
         });
-        mBaiduMap.setOnMapClickListener(new BaiduMap.OnMapClickListener() {
+        mAMap.setOnMapClickListener(new AMap.OnMapClickListener() {
             /**
              * 单击地图
              */
@@ -529,16 +535,16 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 mMarkLatLngMap = point;
                 markMap();
             }
-            /**
-             * 单击地图中的POI点
-             */
+        });
+        // 单击地图中的POI点
+        mAMap.setOnPOIClickListener(new AMap.OnPOIClickListener() {
             @Override
-            public void onMapPoiClick(MapPoi poi) {
-                mMarkLatLngMap = poi.getPosition();
+            public void onPOIClick(Poi poi) {
+                mMarkLatLngMap = poi.getCoordinate();
                 markMap();
             }
         });
-        mBaiduMap.setOnMapLongClickListener(new BaiduMap.OnMapLongClickListener() {
+        mAMap.setOnMapLongClickListener(new AMap.OnMapLongClickListener() {
             /**
              * 长按地图
              */
@@ -546,29 +552,31 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             public void onMapLongClick(LatLng point) {
                 mMarkLatLngMap = point;
                 markMap();
-                mGeoCoder.reverseGeoCode(new ReverseGeoCodeOption().location(point));
+                mGeocodeSearch.getFromLocationAsyn(new RegeocodeQuery(new LatLonPoint(point.latitude, point.longitude), 200, GeocodeSearch.AMAP));
             }
         });
-        mBaiduMap.setOnMapDoubleClickListener(new BaiduMap.OnMapDoubleClickListener() {
-            /**
-             * 双击地图
-             */
+        mPoiView = View.inflate(MainActivity.this, R.layout.location_poi_info, null);
+        mPoiAddress = mPoiView.findViewById(R.id.poi_address);
+        mPoiLongitude = mPoiView.findViewById(R.id.poi_longitude);
+        mPoiLatitude = mPoiView.findViewById(R.id.poi_latitude);
+        // 自定义信息气泡：统一返回 poi 气泡视图（高德通过 InfoWindowAdapter 实现）
+        mAMap.setInfoWindowAdapter(new AMap.InfoWindowAdapter() {
             @Override
-            public void onMapDoubleClick(LatLng point) {
-                mBaiduMap.animateMapStatus(MapStatusUpdateFactory.zoomIn());
+            public View getInfoWindow(Marker marker) {
+                return mPoiView;
+            }
+
+            @Override
+            public View getInfoContents(Marker marker) {
+                return null;
             }
         });
-
-        View poiView = View.inflate(MainActivity.this, R.layout.location_poi_info, null);
-        TextView poiAddress = poiView.findViewById(R.id.poi_address);
-        TextView poiLongitude = poiView.findViewById(R.id.poi_longitude);
-        TextView poiLatitude = poiView.findViewById(R.id.poi_latitude);
-        ImageButton ibSave = poiView.findViewById(R.id.poi_save);
+        ImageButton ibSave = mPoiView.findViewById(R.id.poi_save);
         ibSave.setOnClickListener(v -> {
             recordCurrentLocation(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
             GoUtils.DisplayToast(this, getResources().getString(R.string.app_location_save));
         });
-        ImageButton ibCopy = poiView.findViewById(R.id.poi_copy);
+        ImageButton ibCopy = mPoiView.findViewById(R.id.poi_copy);
         ibCopy.setOnClickListener(v -> {
             //获取剪贴板管理器：
             ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
@@ -579,28 +587,41 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
             GoUtils.DisplayToast(this,  getResources().getString(R.string.app_location_copy));
         });
-        ImageButton ibShare = poiView.findViewById(R.id.poi_share);
-        ibShare.setOnClickListener(v -> ShareUtils.shareText(MainActivity.this, "分享位置", poiLongitude.getText()+","+poiLatitude.getText()));
-        ImageButton ibFly = poiView.findViewById(R.id.poi_fly);
+        ImageButton ibShare = mPoiView.findViewById(R.id.poi_share);
+        ibShare.setOnClickListener(v -> ShareUtils.shareText(MainActivity.this, "分享位置", mPoiLongitude.getText()+","+mPoiLatitude.getText()));
+        ImageButton ibFly = mPoiView.findViewById(R.id.poi_fly);
         ibFly.setOnClickListener(this::doGoLocation);
-        mGeoCoder = GeoCoder.newInstance();
-        mGeoCoder.setOnGetGeoCodeResultListener(new OnGetGeoCoderResultListener() {
+        try {
+            mGeocodeSearch = new GeocodeSearch(this);
+        } catch (AMapException e) {
+            XLog.e("GeocodeSearch init error: " + e.getMessage());
+        }
+        mGeocodeSearch.setOnGeocodeSearchListener(new GeocodeSearch.OnGeocodeSearchListener() {
             @Override
-            public void onGetGeoCodeResult(GeoCodeResult geoCodeResult) {
-                XLog.i(geoCodeResult.getLocation());
+            public void onGeocodeSearched(GeocodeResult geoCodeResult, int rCode) {
+                if (geoCodeResult != null && geoCodeResult.getGeocodeAddressList() != null
+                        && geoCodeResult.getGeocodeAddressList().size() > 0) {
+                    XLog.i(String.valueOf(geoCodeResult.getGeocodeAddressList().get(0).getLatLonPoint()));
+                }
             }
 
             @Override
-            public void onGetReverseGeoCodeResult(ReverseGeoCodeResult reverseGeoCodeResult) {
-                if (reverseGeoCodeResult == null || reverseGeoCodeResult.error != SearchResult.ERRORNO.NO_ERROR) {
+            public void onRegeocodeSearched(RegeocodeResult regeocodeResult, int rCode) {
+                if (rCode != AMapException.CODE_AMAP_SUCCESS || regeocodeResult == null) {
                     XLog.i("逆地理位置失败!");
                 } else {
-                    mMarkName = String.valueOf(reverseGeoCodeResult.getAddress());
-                    poiLatitude.setText(String.valueOf(reverseGeoCodeResult.getLocation().latitude));
-                    poiLongitude.setText(String.valueOf(reverseGeoCodeResult.getLocation().longitude));
-                    poiAddress.setText(reverseGeoCodeResult.getAddress());
-                    final InfoWindow mInfoWindow = new InfoWindow(poiView, reverseGeoCodeResult.getLocation(), -100);
-                    mBaiduMap.showInfoWindow(mInfoWindow);
+                    RegeocodeAddress address = regeocodeResult.getRegeocodeAddress();
+                    if (address == null) {
+                        return;
+                    }
+                    mMarkName = address.getFormatAddress();
+                    LatLonPoint pt = regeocodeResult.getRegeocodeQuery().getPoint();
+                    mPoiLatitude.setText(String.valueOf(pt.getLatitude()));
+                    mPoiLongitude.setText(String.valueOf(pt.getLongitude()));
+                    mPoiAddress.setText(address.getFormatAddress());
+                    if (mMarkInfoMarker != null) {
+                        mMarkInfoMarker.showInfoWindow();
+                    }
                 }
             }
         });
@@ -631,117 +652,121 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         return BitmapDescriptorFactory.fromBitmap(bmp);
     }
 
-    //开启地图的定位图层
+    // 更新当前位置蓝点（Marker 方案，高德定位图层不开启）
+    private static void updatePosMarker(double lat, double lng) {
+        if (mAMap == null) {
+            return;
+        }
+        if (mLocIcon == null) {
+            mLocIcon = createLocIconStatic();
+        }
+        LatLng pos = new LatLng(lat, lng);
+        if (mPosMarker == null) {
+            mPosMarker = mAMap.addMarker(new MarkerOptions()
+                    .position(pos).icon(mLocIcon).anchor(0.5f, 0.5f));
+        } else {
+            mPosMarker.setPosition(pos);
+        }
+    }
+
+    // 清空地图上的覆盖物，同时保留当前位置蓝点
+    private static void clearMap() {
+        if (mAMap == null) {
+            return;
+        }
+        LatLng keepPos = (mPosMarker != null) ? mPosMarker.getPosition() : null;
+        mAMap.clear();
+        if (keepPos != null) {
+            if (mLocIcon == null) {
+                mLocIcon = createLocIconStatic();
+            }
+            mPosMarker = mAMap.addMarker(new MarkerOptions()
+                    .position(keepPos).icon(mLocIcon).anchor(0.5f, 0.5f));
+        } else {
+            mPosMarker = null;
+        }
+    }
+
+    // 生成小尺寸定位蓝点图标（静态版，供静态方法使用）
+    private static BitmapDescriptor createLocIconStatic() {
+        int size = 52;   // px
+        android.graphics.Bitmap bmp = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888);
+        android.graphics.Canvas canvas = new android.graphics.Canvas(bmp);
+        android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+        paint.setColor(0x3388D1F1);
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint);
+        paint.setColor(0xFF0288D1);
+        canvas.drawCircle(size / 2f, size / 2f, size / 4f, paint);
+        return BitmapDescriptorFactory.fromBitmap(bmp);
+    }
+
+    //开启地图的定位
     private void initMapLocation() {
         try {
-            // 小尺寸定位图标（蓝点），用于定位图层
+            // 小尺寸定位图标（蓝点）
             if (mLocIcon == null) {
                 mLocIcon = createLocIcon();
             }
             // 定位初始化
-            mLocClient = new LocationClient(this);
-            mLocClient.registerLocationListener(new BDAbstractLocationListener() {
+            mLocClient = new AMapLocationClient(this);
+            mLocClient.setLocationListener(new AMapLocationListener() {
                 @Override
-                public void onReceiveLocation(BDLocation bdLocation) {
-                    if (bdLocation == null || mMapView == null) {// mapview 销毁后不在处理新接收的位置
+                public void onLocationChanged(AMapLocation aMapLocation) {
+                    if (aMapLocation == null || mMapView == null) {// mapview 销毁后不在处理新接收的位置
                         return;
                     }
-                    // 过滤无效定位：定位失败/经纬度为0会把蓝点跳到非洲赤道(0,0)
-                    double locLat = bdLocation.getLatitude();
-                    double locLon = bdLocation.getLongitude();
-                    int locType = bdLocation.getLocType();
-                    // 百度定位成功类型：61(GPS), 161(网络), 66(离线), 68, 512, 505
-                    boolean locOk = (locType == 61 || locType == 161 || locType == 66
-                            || locType == 68 || locType == 512 || locType == 505)
-                            && locLat != 0.0 && locLon != 0.0;
-                    if (!locOk) {
+                    // 过滤无效定位：errorCode!=0 为失败，经纬度为0会跳到非洲赤道(0,0)
+                    if (aMapLocation.getErrorCode() != 0) {
+                        return;
+                    }
+                    double locLat = aMapLocation.getLatitude();
+                    double locLon = aMapLocation.getLongitude();
+                    if (locLat == 0.0 && locLon == 0.0) {
                         return;
                     }
 
-                    mCurrentCity = bdLocation.getCity();
-                    mCurrentLat = bdLocation.getLatitude();
-                    mCurrentLon = bdLocation.getLongitude();
+                    mCurrentCity = aMapLocation.getCity();
+                    mCurrentLat = locLat;
+                    mCurrentLon = locLon;
                     // 路线模拟运行时，不把真实定位写入地图蓝点，避免和模拟位置冲突导致图标晃动
                     boolean routeRunning = (mServiceBinder != null && mServiceBinder.isRouteRunning());
                     if (!routeRunning) {
-                        MyLocationData locData = new MyLocationData.Builder()
-                                .accuracy(bdLocation.getRadius())
-                                .direction(mCurrentDirection)// 此处设置开发者获取到的方向信息，顺时针0-360
-                                .latitude(bdLocation.getLatitude())
-                                .longitude(bdLocation.getLongitude()).build();
-                        mBaiduMap.setMyLocationData(locData);
-                        MyLocationConfiguration configuration = new MyLocationConfiguration(MyLocationConfiguration.LocationMode.NORMAL, true, mLocIcon);
-                        mBaiduMap.setMyLocationConfiguration(configuration);
+                        updatePosMarker(locLat, locLon);
                     }
 
-                    /* 如果出现错误，则需要重新请求位置 */
-                    int err = bdLocation.getLocType();
-                    if (err == BDLocation.TypeCriteriaException || err == BDLocation.TypeNetWorkException) {
-                        mLocClient.requestLocation();   /* 请求位置 */
-                    } else {
-                        if (isFirstLoc) {
-                            isFirstLoc = false;
-                            // 这里记录百度地图返回的位置
-                            mMarkLatLngMap = new LatLng(bdLocation.getLatitude(), bdLocation.getLongitude());
-                            MapStatus.Builder builder = new MapStatus.Builder();
-                            builder.target(mMarkLatLngMap).zoom(18.0f);
-                            mBaiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+                    if (isFirstLoc) {
+                        isFirstLoc = false;
+                        // 这里记录高德返回的位置
+                        mMarkLatLngMap = new LatLng(locLat, locLon);
+                        mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mMarkLatLngMap, 18f));
 
-                            XLog.i("First Baidu LatLng: " + mMarkLatLngMap);
-                        }
+                        XLog.i("First AMap LatLng: " + mMarkLatLngMap);
                     }
-                }
-                /**
-                 * 错误的状态码
-                 * <a><a href="http://lbsyun.baidu.com/index.php?title=android-locsdk/guide/addition-func/error-code">...</a></a>
-                 * <p>
-                 * 回调定位诊断信息，开发者可以根据相关信息解决定位遇到的一些问题
-                 *
-                 * @param locType      当前定位类型
-                 * @param diagnosticType  诊断类型（1~9）
-                 * @param diagnosticMessage 具体的诊断信息释义
-                 */
-                @Override
-                public void onLocDiagnosticMessage(int locType, int diagnosticType, String diagnosticMessage) {
-                    XLog.i("Baidu ERROR: " + locType + "-" + diagnosticType + "-" + diagnosticMessage);
                 }
             });
-            LocationClientOption locationOption = getLocationClientOption();
-            //需将配置好的LocationClientOption对象，通过setLocOption方法传递给LocationClient对象使用
-            mLocClient.setLocOption(locationOption);
+            AMapLocationClientOption locationOption = getLocationClientOption();
+            //需将配置好的LocationClientOption对象，通过setLocationOption方法传递给LocationClient对象使用
+            mLocClient.setLocationOption(locationOption);
             //开始定位
-            mLocClient.start();
+            mLocClient.startLocation();
         } catch (Exception e) {
             XLog.e("ERROR: initMapLocation");
         }
     }
 
     @NonNull
-    private static LocationClientOption getLocationClientOption() {
-        LocationClientOption locationOption = new LocationClientOption();
-        //可选，默认高精度，设置定位模式，高精度，低功耗，仅设备
-        locationOption.setLocationMode(LocationClientOption.LocationMode.Hight_Accuracy);
-        //可选，默认gcj02，设置返回的定位结果坐标系，如果配合百度地图使用，建议设置为bd09ll;
-        locationOption.setCoorType("bd09ll");
-        //可选，默认0，即仅定位一次，设置发起连续定位请求的间隔需要大于等于1000ms才是有效的
-        locationOption.setScanSpan(1000);
-        //可选，设置是否需要地址信息，默认不需要
-        locationOption.setIsNeedAddress(true);
-        //可选，设置是否需要设备方向结果
-        locationOption.setNeedDeviceDirect(false);
-        //可选，默认false，设置是否当gps有效时按照1S1次频率输出GPS结果
-        locationOption.setLocationNotify(true);
-        //可选，默认true，定位SDK内部是一个SERVICE，并放到了独立进程，设置是否在stop的时候杀死这个进程，默认不杀死
-        locationOption.setIgnoreKillProcess(true);
-        //可选，默认false，设置是否需要位置语义化结果，可以在BDLocation.getLocationDescribe里得到，结果类似于“在北京天安门附近”
-        locationOption.setIsNeedLocationDescribe(false);
-        //可选，默认false，设置是否需要POI结果，可以在BDLocation.getPoiList里得到
-        locationOption.setIsNeedLocationPoiList(false);
-        //可选，默认false，设置是否开启Gps定位
-        locationOption.setOpenGps(true);
-        locationOption.setOpenGnss(true);
-        //可选，默认false，设置定位时是否需要海拔信息，默认不需要，除基础定位版本都可用
-        locationOption.setIsNeedAltitude(false);
+    private static AMapLocationClientOption getLocationClientOption() {
+        AMapLocationClientOption locationOption = new AMapLocationClientOption();
+        //高精度定位模式
+        locationOption.setLocationMode(AMapLocationClientOption.AMapLocationMode.Hight_Accuracy);
+        // 设置定位间隔(毫秒)，连续定位
+        locationOption.setInterval(1000);
+        // 设置是否需要地址信息
+        locationOption.setNeedAddress(true);
+        // 设置是否优先使用GPS
+        locationOption.setGpsFirst(true);
+        // 关闭缓存，避免拿到旧位置
+        locationOption.setLocationCacheEnable(false);
         return locationOption;
     }
 
@@ -750,11 +775,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         RadioGroup mGroupMapType = this.findViewById(R.id.RadioGroupMapType);
         mGroupMapType.setOnCheckedChangeListener((group, checkedId) -> {
             if (checkedId == R.id.mapNormal) {
-                mBaiduMap.setMapType(BaiduMap.MAP_TYPE_NORMAL);
+                mAMap.setMapType(AMap.MAP_TYPE_NORMAL);
             }
 
             if (checkedId == R.id.mapSatellite) {
-                mBaiduMap.setMapType(BaiduMap.MAP_TYPE_SATELLITE);
+                mAMap.setMapType(AMap.MAP_TYPE_SATELLITE);
             }
         });
 
@@ -762,16 +787,16 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         curPosBtn.setOnClickListener(v -> {
             // 强制请求一次定位，再复位地图
             if (mLocClient != null) {
-                mLocClient.requestLocation();
+                mLocClient.startLocation();
             }
             resetMapSafe();
         });
 
         ImageButton zoomInBtn = this.findViewById(R.id.zoom_in);
-        zoomInBtn.setOnClickListener(v -> mBaiduMap.animateMapStatus(MapStatusUpdateFactory.zoomIn()));
+        zoomInBtn.setOnClickListener(v -> mAMap.animateCamera(CameraUpdateFactory.zoomIn()));
 
         ImageButton zoomOutBtn = this.findViewById(R.id.zoom_out);
-        zoomOutBtn.setOnClickListener(v -> mBaiduMap.animateMapStatus(MapStatusUpdateFactory.zoomOut()));
+        zoomOutBtn.setOnClickListener(v -> mAMap.animateCamera(CameraUpdateFactory.zoomOut()));
 
         ImageButton inputPosBtn = this.findViewById(R.id.input_pos);
         inputPosBtn.setOnClickListener(v -> {
@@ -804,17 +829,18 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                             GoUtils.DisplayToast(MainActivity.this,  getResources().getString(R.string.app_error_latitude));
                         } else {
                             if (rbBD.isChecked()) {
+                                // 高德坐标系(GCJ02)，直接使用
                                 mMarkLatLngMap = new LatLng(dialog_lat_double, dialog_lng_double);
                             } else {
-                                double[] bdLonLat = MapUtils.wgs2bd09(dialog_lat_double, dialog_lng_double);
-                                mMarkLatLngMap = new LatLng(bdLonLat[1], bdLonLat[0]);
+                                // GPS坐标系(WGS84)，转换为高德GCJ02
+                                double[] gcjLonLat = MapUtils.wgs2gcj02(dialog_lng_double, dialog_lat_double);
+                                mMarkLatLngMap = new LatLng(gcjLonLat[1], gcjLonLat[0]);
                             }
                             mMarkName = "手动输入的坐标";
 
                             markMap();
 
-                            MapStatusUpdate mapstatusupdate = MapStatusUpdateFactory.newLatLng(mMarkLatLngMap);
-                            mBaiduMap.setMapStatus(mapstatusupdate);
+                            mAMap.moveCamera(CameraUpdateFactory.newLatLng(mMarkLatLngMap));
 
                             dialog.dismiss();
                         }
@@ -831,41 +857,33 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private void markMap() {
         if (mMarkLatLngMap != null) {
             MarkerOptions ooA = new MarkerOptions().position(mMarkLatLngMap).icon(mMapIndicator);
-            mBaiduMap.clear();
-            mBaiduMap.addOverlay(ooA);
+            clearMap();
+            mMarkInfoMarker = mAMap.addMarker(ooA);
         }
     }
 
     private void resetMap() {
-        // 优先定位到当前模拟位置（服务运行中）；否则用百度真实定位；都没有则回退到默认位置（山东理工操场）
+        // 优先定位到当前模拟位置（服务运行中）；否则用高德真实定位；都没有则回退到默认位置（山东理工操场）
         double targetLat, targetLng;
         if (mServiceBinder != null && mServiceBinder.isRouteRunning()) {
             double[] cur = mServiceBinder.getCurrentPosition();   // {lng, lat} wgs84
-            double[] bd = MapUtils.wgs2bd09(cur[0], cur[1]);
-            targetLng = bd[0];
-            targetLat = bd[1];
+            double[] gcj = MapUtils.wgs2gcj02(cur[0], cur[1]);
+            targetLng = gcj[0];
+            targetLat = gcj[1];
         } else if (mCurrentLat != 0.0 && mCurrentLon != 0.0) {
             targetLat = mCurrentLat;
             targetLng = mCurrentLon;
         } else {
-            double[] bd = MapUtils.wgs2bd09(ServiceGo.DEFAULT_LNG, ServiceGo.DEFAULT_LAT);
-            targetLng = bd[0];
-            targetLat = bd[1];
+            double[] gcj = MapUtils.wgs2gcj02(ServiceGo.DEFAULT_LNG, ServiceGo.DEFAULT_LAT);
+            targetLng = gcj[0];
+            targetLat = gcj[1];
         }
 
-        mBaiduMap.clear();
+        clearMap();
         mMarkLatLngMap = new LatLng(targetLat, targetLng);
+        updatePosMarker(targetLat, targetLng);
 
-        MyLocationData locData = new MyLocationData.Builder()
-                .latitude(targetLat)
-                .longitude(targetLng)
-                .direction(mCurrentDirection)
-                .build();
-        mBaiduMap.setMyLocationData(locData);
-
-        MapStatus.Builder builder = new MapStatus.Builder();
-        builder.target(new LatLng(targetLat, targetLng)).zoom(18.0f);
-        mBaiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+        mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mMarkLatLngMap, 18f));
     }
 
     // 复位：兜底异常保护（保证当前位置按钮必响应）
@@ -875,28 +893,26 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         } catch (Exception e) {
             XLog.e("resetMap error: " + e.getMessage());
             GoUtils.DisplayToast(this, "定位失败，已回退到默认位置");
-            double[] bd = MapUtils.wgs2bd09(ServiceGo.DEFAULT_LNG, ServiceGo.DEFAULT_LAT);
-            mBaiduMap.clear();
-            mMarkLatLngMap = new LatLng(bd[1], bd[0]);
-            MapStatus.Builder builder = new MapStatus.Builder();
-            builder.target(mMarkLatLngMap).zoom(18.0f);
-            mBaiduMap.animateMapStatus(MapStatusUpdateFactory.newMapStatus(builder.build()));
+            double[] gcj = MapUtils.wgs2gcj02(ServiceGo.DEFAULT_LNG, ServiceGo.DEFAULT_LAT);
+            clearMap();
+            mMarkLatLngMap = new LatLng(gcj[1], gcj[0]);
+            updatePosMarker(gcj[1], gcj[0]);
+            mAMap.animateCamera(CameraUpdateFactory.newLatLngZoom(mMarkLatLngMap, 18f));
         }
     }
 
-    // 在地图上显示位置
-    public static boolean showLocation(String name, String bd09Longitude, String bd09Latitude) {
+    // 在地图上显示位置（坐标为高德GCJ02）
+    public static boolean showLocation(String name, String gcjLongitude, String gcjLatitude) {
         boolean ret = true;
 
         try {
-            if (!bd09Longitude.isEmpty() && !bd09Latitude.isEmpty()) {
+            if (!gcjLongitude.isEmpty() && !gcjLatitude.isEmpty()) {
                 mMarkName = name;
-                mMarkLatLngMap = new LatLng(Double.parseDouble(bd09Latitude), Double.parseDouble(bd09Longitude));
+                mMarkLatLngMap = new LatLng(Double.parseDouble(gcjLatitude), Double.parseDouble(gcjLongitude));
                 MarkerOptions ooA = new MarkerOptions().position(mMarkLatLngMap).icon(mMapIndicator);
-                mBaiduMap.clear();
-                mBaiduMap.addOverlay(ooA);
-                MapStatusUpdate mapstatusupdate = MapStatusUpdateFactory.newLatLng(mMarkLatLngMap);
-                mBaiduMap.setMapStatus(mapstatusupdate);
+                clearMap();
+                mMarkInfoMarker = mAMap.addMarker(ooA);
+                mAMap.moveCamera(CameraUpdateFactory.newLatLng(mMarkLatLngMap));
             }
         } catch (Exception e) {
             ret = false;
@@ -1100,7 +1116,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mRouteEditMode = !mRouteEditMode;
         if (mRouteEditMode) {
             mRouteLatLngList.clear();
-            mBaiduMap.clear();
+            clearMap();
             updateCollectInfo();
         } else {
             drawRouteOverlay();
@@ -1128,7 +1144,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private void clearRoute() {
         mRouteEditMode = false;
         mRouteLatLngList.clear();
-        mBaiduMap.clear();
+        clearMap();
         updateCollectInfo();
     }
 
@@ -1394,16 +1410,16 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
     // 用折线 + 途经点标记 在地图上绘制路线
     private void drawRouteOverlay() {
-        mBaiduMap.clear();
+        clearMap();
         if (mRouteLatLngList.size() >= 2) {
-            OverlayOptions polyline = new PolylineOptions()
+            PolylineOptions polyline = new PolylineOptions()
                     .width(8)
                     .color(0xFF1E88E5)
-                    .points(mRouteLatLngList);
-            mBaiduMap.addOverlay(polyline);
+                    .addAll(mRouteLatLngList);
+            mAMap.addPolyline(polyline);
         }
         for (LatLng p : mRouteLatLngList) {
-            mBaiduMap.addOverlay(new MarkerOptions().position(p).icon(mMapIndicator).anchor(0.5f, 0.5f));
+            mAMap.addMarker(new MarkerOptions().position(p).icon(mMapIndicator).anchor(0.5f, 0.5f));
         }
     }
 
@@ -1444,22 +1460,18 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             mPanelProgress.setProgress(pct);
         }
 
-        // 让地图蓝点跟随模拟位置移动：把服务的当前位置(wgs84)转回bd09更新到地图
+        // 让地图蓝点跟随模拟位置移动：把服务的当前位置(wgs84)转成GCJ02更新到地图
         try {
             double[] cur = mServiceBinder.getCurrentPosition();  // {lng, lat} wgs84
-            double[] bd = MapUtils.wgs2bd09(cur[0], cur[1]);
-            MyLocationData locData = new MyLocationData.Builder()
-                    .accuracy(5.0f)
-                    .latitude(bd[1])
-                    .longitude(bd[0]).build();
-            mBaiduMap.setMyLocationData(locData);
+            double[] gcj = MapUtils.wgs2gcj02(cur[0], cur[1]);
+            updatePosMarker(gcj[1], gcj[0]);
             // 轻微移动地图视角（仅在距离足够远时，避免频繁跳动）
-            LatLng curLatLng = new LatLng(bd[1], bd[0]);
-            LatLng mapCenter = mBaiduMap.getMapStatus().target;
+            LatLng curLatLng = new LatLng(gcj[1], gcj[0]);
+            LatLng mapCenter = mAMap.getCameraPosition().target;
             double moveDist = haversineMeters(mapCenter.latitude, mapCenter.longitude,
                     curLatLng.latitude, curLatLng.longitude);
             if (moveDist > 30) {
-                mBaiduMap.animateMapStatus(MapStatusUpdateFactory.newLatLng(curLatLng));
+                mAMap.animateCamera(CameraUpdateFactory.newLatLng(curLatLng));
             }
         } catch (Exception e) {
             XLog.e("updateRouteProgress map move error: " + e.getMessage());
@@ -1470,7 +1482,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private void startRouteOnService() {
         List<double[]> route = new ArrayList<>();
         for (LatLng p : mRouteLatLngList) {
-            double[] latLng = MapUtils.bd2wgs(p.longitude, p.latitude);
+            double[] latLng = MapUtils.gcj02towgs84(p.longitude, p.latitude);
             route.add(new double[]{latLng[0], latLng[1]});
         }
         double speed = getCurrentRouteSpeed();
@@ -1494,11 +1506,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 targetLat = mMarkLatLngMap.latitude;
                 targetLng = mMarkLatLngMap.longitude;
             }
-            double[] latLng = MapUtils.bd2wgs(targetLng, targetLat);
+            double[] latLng = MapUtils.gcj02towgs84(targetLng, targetLat);
             serviceGoIntent.putExtra(LNG_MSG_ID, latLng[0]);
             serviceGoIntent.putExtra(LAT_MSG_ID, latLng[1]);
         } else {
-            double[] latLng = MapUtils.bd2wgs(mRouteLatLngList.get(0).longitude, mRouteLatLngList.get(0).latitude);
+            double[] latLng = MapUtils.gcj02towgs84(mRouteLatLngList.get(0).longitude, mRouteLatLngList.get(0).latitude);
             serviceGoIntent.putExtra(LNG_MSG_ID, latLng[0]);
             serviceGoIntent.putExtra(LAT_MSG_ID, latLng[1]);
             mRoutePendingStart = true;    // 服务连接后自动开启路线跟随
@@ -1533,12 +1545,8 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             if (granted) {
                 GoUtils.DisplayToast(this, "定位权限已授权");
                 // 权限就绪后开启定位图层并重新定位
-                if (mBaiduMap != null) {
-                    mBaiduMap.setMyLocationEnabled(true);
-                }
                 if (mLocClient != null) {
-                    mLocClient.restart();   // 确保定位客户端处于运行状态
-                    mLocClient.requestLocation();
+                    mLocClient.startLocation();
                 }
             } else {
                 GoUtils.DisplayToast(this, "未授予定位权限，位置功能不可用");
@@ -1584,7 +1592,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     mRoutePanel.setVisibility(View.GONE);
                 }
             } else {
-                double[] latLng = MapUtils.bd2wgs(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
+                double[] latLng = MapUtils.gcj02towgs84(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
                 double alt = Double.parseDouble(sharedPreferences.getString("setting_altitude", "55.0"));
                 mServiceBinder.setPosition(latLng[0], latLng[1], alt);
                 Snackbar.make(v, "已传送到新位置", Snackbar.LENGTH_LONG)
@@ -1592,7 +1600,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
                 recordCurrentLocation(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
 
-                mBaiduMap.clear();
+                clearMap();
                 mMarkLatLngMap = null;
 
                 if (GoUtils.isWifiEnabled(MainActivity.this)) {
@@ -1639,12 +1647,9 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     if (mRouteLatLngList.size() >= 2) {
                         drawRouteOverlay();
                     } else {
-                        mBaiduMap.clear();
+                        clearMap();
                     }
-                    // 确保定位图层开启，使模拟蓝点正常显示
-                    mBaiduMap.setMyLocationEnabled(true);
-                    mBaiduMap.setMyLocationConfiguration(new MyLocationConfiguration(
-                            MyLocationConfiguration.LocationMode.NORMAL, true, mLocIcon));
+                    // 模拟蓝点由 updatePosMarker 维护，无需开启高德原生定位图层
 
                     if (GoUtils.isWifiEnabled(MainActivity.this)) {
                         GoUtils.showDisableWifiDialog(MainActivity.this);
@@ -1697,12 +1702,12 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
     // 记录请求的位置信息
     private void recordCurrentLocation(double lng, double lat) {
-        //参数坐标系：bd09
-        final String safeCode = BuildConfig.MAPS_SAFE_CODE;
+        //参数坐标系：GCJ02（高德）
         final String ak = sharedPreferences.getString("setting_map_key", BuildConfig.MAPS_API_KEY);
-        double[] latLng = MapUtils.bd2wgs(lng, lat);
-        //bd09坐标的位置信息
-        String mapApiUrl = "https://api.map.baidu.com/reverse_geocoding/v3/?ak=" + ak + "&output=json&coordtype=bd09ll" + "&location=" + lat + "," + lng + "&mcode=" + safeCode;
+        double[] latLng = MapUtils.gcj02towgs84(lng, lat);
+        //高德逆地理编码 REST API
+        String mapApiUrl = "https://restapi.amap.com/v3/geocode/regeo?key=" + ak
+                + "&location=" + lng + "," + lat + "&output=json";
 
         okhttp3.Request request = new okhttp3.Request.Builder().url(mapApiUrl).get().build();
         final Call call = mOkHttpClient.newCall(request);
@@ -1731,9 +1736,9 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     try {
                         JSONObject getRetJson = new JSONObject(resp);
 
-                        if (Integer.parseInt(getRetJson.getString("status")) == 0) { // 位置获取成功
-                            JSONObject posInfoJson = getRetJson.getJSONObject("result");
-                            String formatted_address = posInfoJson.getString("formatted_address");
+                        if (getRetJson.optString("status", "").equals("1")) { // 位置获取成功
+                            JSONObject regeocodeJson = getRetJson.getJSONObject("regeocode");
+                            String formatted_address = regeocodeJson.getString("formatted_address");
                             ContentValues contentValues = new ContentValues();
                             contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LOCATION, formatted_address);
                             contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_WGS84, String.valueOf(latLng[0]));
@@ -1744,7 +1749,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                             DataBaseHistoryLocation.saveHistoryLocation(mLocationHistoryDB, contentValues);
                         } else {
                             ContentValues contentValues = new ContentValues();
-                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LOCATION, mMarkName == null ? getRetJson.getString("message"): mMarkName);
+                            contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LOCATION, mMarkName == null ? getRetJson.optString("info", "位置获取失败") : mMarkName);
                             contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LONGITUDE_WGS84, String.valueOf(latLng[0]));
                             contentValues.put(DataBaseHistoryLocation.DB_COLUMN_LATITUDE_WGS84, String.valueOf(latLng[1]));
                             contentValues.put(DataBaseHistoryLocation.DB_COLUMN_TIMESTAMP, System.currentTimeMillis() / 1000);
@@ -1780,12 +1785,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             String lat = ((TextView) view.findViewById(R.id.poi_latitude)).getText().toString();
             mMarkName = ((TextView) view.findViewById(R.id.poi_name)).getText().toString();
             mMarkLatLngMap = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
-            MapStatusUpdate mapstatusupdate = MapStatusUpdateFactory.newLatLng(mMarkLatLngMap);
-            mBaiduMap.setMapStatus(mapstatusupdate);
+            mAMap.moveCamera(CameraUpdateFactory.newLatLng(mMarkLatLngMap));
 
             markMap();
 
-            double[] latLng = MapUtils.bd2wgs(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
+            double[] latLng = MapUtils.gcj02towgs84(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
 
             // mSearchList.setVisibility(View.GONE);
             //搜索历史 插表参数
@@ -1816,12 +1820,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 String lat = ((TextView) view.findViewById(R.id.search_latitude)).getText().toString();
                 // mMarkName = ((TextView) view.findViewById(R.id.poi_name)).getText().toString();
                 mMarkLatLngMap = new LatLng(Double.parseDouble(lat), Double.parseDouble(lng));
-                MapStatusUpdate mapstatusupdate = MapStatusUpdateFactory.newLatLng(mMarkLatLngMap);
-                mBaiduMap.setMapStatus(mapstatusupdate);
+                mAMap.moveCamera(CameraUpdateFactory.newLatLng(mMarkLatLngMap));
 
                 markMap();
 
-                double[] latLng = MapUtils.bd2wgs(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
+                double[] latLng = MapUtils.gcj02towgs84(mMarkLatLngMap.longitude, mMarkLatLngMap.latitude);
 
                 //设置列表不可见
                 mHistoryLayout.setVisibility(View.INVISIBLE);
@@ -1888,42 +1891,43 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     .show();
             return true;
         });
-        //设置搜索建议返回值监听
-        mSuggestionSearch = SuggestionSearch.newInstance();
-        mSuggestionSearch.setOnGetSuggestionResultListener(suggestionResult -> {
-            if (suggestionResult == null || suggestionResult.getAllSuggestions() == null) {
-                GoUtils.DisplayToast(this,getResources().getString(R.string.app_search_null));
-            } else {
-                List<Map<String, Object>> data = getMapList(suggestionResult);
+        // 设置搜索建议返回值监听（高德 Inputtips）
+        mInputtips = new Inputtips(this, new InputtipsQuery("", null));
+    }
 
-                SimpleAdapter simAdapt = new SimpleAdapter(
-                        MainActivity.this,
-                        data,
-                        R.layout.search_poi_item,
-                        new String[] {POI_NAME, POI_ADDRESS, POI_LONGITUDE, POI_LATITUDE}, // 与下面数组元素要一一对应
-                        new int[] {R.id.poi_name, R.id.poi_address, R.id.poi_longitude, R.id.poi_latitude});
-                mSearchList.setAdapter(simAdapt);
-                // mSearchList.setVisibility(View.VISIBLE);
-                mSearchLayout.setVisibility(View.VISIBLE);
-            }
-        });
+    // 高德输入提示回调：刷新候选 POI 列表
+    private void onInputtipsResult(List<Tip> tipList, int rCode) {
+        if (rCode == AMapException.CODE_AMAP_SUCCESS && tipList != null && !tipList.isEmpty()) {
+            List<Map<String, Object>> data = getMapList(tipList);
+
+            SimpleAdapter simAdapt = new SimpleAdapter(
+                    MainActivity.this,
+                    data,
+                    R.layout.search_poi_item,
+                    new String[] {POI_NAME, POI_ADDRESS, POI_LONGITUDE, POI_LATITUDE}, // 与下面数组元素要一一对应
+                    new int[] {R.id.poi_name, R.id.poi_address, R.id.poi_longitude, R.id.poi_latitude});
+            mSearchList.setAdapter(simAdapt);
+            mSearchLayout.setVisibility(View.VISIBLE);
+        } else {
+            GoUtils.DisplayToast(this, getResources().getString(R.string.app_search_null));
+        }
     }
 
     @NonNull
-    private static List<Map<String, Object>> getMapList(SuggestionResult suggestionResult) {
+    private static List<Map<String, Object>> getMapList(List<Tip> tipList) {
         List<Map<String, Object>> data = new ArrayList<>();
-        int retCnt = suggestionResult.getAllSuggestions().size();
 
-        for (int i = 0; i < retCnt; i++) {
-            if (suggestionResult.getAllSuggestions().get(i).pt == null) {
+        for (Tip tip : tipList) {
+            LatLonPoint pt = tip.getPoint();
+            if (pt == null) {
                 continue;
             }
 
             Map<String, Object> poiItem = new HashMap<>();
-            poiItem.put(POI_NAME, suggestionResult.getAllSuggestions().get(i).key);
-            poiItem.put(POI_ADDRESS, suggestionResult.getAllSuggestions().get(i).city + " " + suggestionResult.getAllSuggestions().get(i).district);
-            poiItem.put(POI_LONGITUDE, "" + suggestionResult.getAllSuggestions().get(i).pt.longitude);
-            poiItem.put(POI_LATITUDE, "" + suggestionResult.getAllSuggestions().get(i).pt.latitude);
+            poiItem.put(POI_NAME, tip.getName());
+            poiItem.put(POI_ADDRESS, tip.getAddress() + " " + tip.getDistrict());
+            poiItem.put(POI_LONGITUDE, "" + pt.getLongitude());
+            poiItem.put(POI_LATITUDE, "" + pt.getLatitude());
             data.add(poiItem);
         }
         return data;

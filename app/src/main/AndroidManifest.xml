@@ -61,12 +61,12 @@
             android:name="org.apache.http.legacy"
             android:required="false" />
 
-        <!-- 百度地图 间隔定位必须配置此service否则功能无效 -->
+        <!-- 高德地图 定位服务（官方要求必须声明） -->
         <service
-            android:name="com.baidu.location.f"
+            android:name="com.amap.api.location.APSService"
             android:enabled="true"
             android:exported="false"
-            android:process=":remote" />
+            android:process=":location" />
 
         <service
             android:exported="false"
