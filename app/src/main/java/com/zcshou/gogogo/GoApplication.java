@@ -1,6 +1,7 @@
 package com.zcshou.gogogo;
 
 import android.app.Application;
+import android.content.Intent;
 
 import com.amap.api.location.AMapLocationClient;
 import com.amap.api.maps.MapsInitializer;
@@ -16,6 +17,12 @@ import com.elvishew.xlog.printer.file.clean.FileLastModifiedCleanStrategy;
 import com.elvishew.xlog.printer.file.naming.ChangelessFileNameGenerator;
 
 import java.io.File;
+import java.io.FileWriter;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public class GoApplication extends Application {
     public static final String APP_NAME = "GoGoGo";
@@ -26,18 +33,61 @@ public class GoApplication extends Application {
     public void onCreate() {
         super.onCreate();
 
-        initXlog();
+        // 全局崩溃捕获：闪退时弹出 CrashActivity 显示完整堆栈
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            StringWriter sw = new StringWriter();
+            throwable.printStackTrace(new PrintWriter(sw));
+            String stackTrace = sw.toString();
+            writeInitLog("=== CRASH ===\n" + stackTrace);
+            try {
+                Intent intent = new Intent(this, CrashActivity.class);
+                intent.putExtra("error", stackTrace);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            System.exit(0);
+        });
 
-        // 高德地图/定位 SDK 隐私合规声明（必须）
-        AMapLocationClient.updatePrivacyShow(this, true, true);
-        AMapLocationClient.updatePrivacyAgree(this, true);
-        // 设置高德 Key（从 local.properties 注入 BuildConfig）
-        MapsInitializer.setApiKey(BuildConfig.MAPS_API_KEY);
-        // 在使用 SDK 各组间之前初始化 context 信息，传入 ApplicationContext
+        initXlog();
+        writeInitLog("GoApplication.onCreate start");
+
         try {
+            // 高德地图/定位 SDK 隐私合规声明（必须）
+            AMapLocationClient.updatePrivacyShow(this, true, true);
+            writeInitLog("updatePrivacyShow OK");
+            AMapLocationClient.updatePrivacyAgree(this, true);
+            writeInitLog("updatePrivacyAgree OK");
+            // 设置高德 Key（从 local.properties 注入 BuildConfig）
+            MapsInitializer.setApiKey(BuildConfig.MAPS_API_KEY);
+            writeInitLog("setApiKey OK, key=" + (BuildConfig.MAPS_API_KEY == null ? "null" : BuildConfig.MAPS_API_KEY.substring(0, 8) + "..."));
+            // 在使用 SDK 各组间之前初始化 context 信息，传入 ApplicationContext
             MapsInitializer.initialize(this);
+            writeInitLog("MapsInitializer.initialize OK");
+        } catch (Throwable t) {
+            writeInitLog("GoApplication init ERROR: " + t.getClass().getName() + ": " + t.getMessage());
+            t.printStackTrace();
+        }
+        writeInitLog("GoApplication.onCreate end");
+    }
+
+    /**
+     * 写入初始化诊断日志到 app 私有目录，便于排查 native crash 卡在哪一步
+     */
+    public static void writeInitLog(String msg) {
+        try {
+            File logDir = new File("/sdcard/Android/data/com.doubao.sport/files");
+            if (!logDir.exists()) {
+                logDir.mkdirs();
+            }
+            File logFile = new File(logDir, "init.log");
+            String time = new SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(new Date());
+            FileWriter fw = new FileWriter(logFile, true);
+            fw.write("[" + time + "] " + msg + "\n");
+            fw.close();
         } catch (Exception e) {
-            e.printStackTrace();
+            // 忽略日志写入失败
         }
     }
 

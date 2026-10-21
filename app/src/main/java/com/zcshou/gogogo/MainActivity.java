@@ -26,7 +26,11 @@ import android.os.IBinder;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.text.SpannableString;
 import android.text.TextUtils;
+import android.text.style.ForegroundColorSpan;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -71,16 +75,6 @@ import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.Poi;
 import com.amap.api.maps.model.PolylineOptions;
-import com.amap.api.services.core.AMapException;
-import com.amap.api.services.core.LatLonPoint;
-import com.amap.api.services.geocoder.GeocodeResult;
-import com.amap.api.services.geocoder.GeocodeSearch;
-import com.amap.api.services.geocoder.RegeocodeAddress;
-import com.amap.api.services.geocoder.RegeocodeQuery;
-import com.amap.api.services.geocoder.RegeocodeResult;
-import com.amap.api.services.help.Inputtips;
-import com.amap.api.services.help.InputtipsQuery;
-import com.amap.api.services.help.Tip;
 import com.google.android.material.navigation.NavigationView;
 import com.google.android.material.snackbar.Snackbar;
 
@@ -133,7 +127,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private static AMap mAMap = null;
     private static LatLng mMarkLatLngMap = new LatLng(35.3569754, 116.5744746); // 当前标记的地图点(默认山东理工职业学院操场, GCJ02)
     private static String mMarkName = null;
-    private GeocodeSearch mGeocodeSearch;
     private SensorManager mSensorManager;
     private Sensor mSensorAccelerometer;
     private Sensor mSensorMagnetic;
@@ -162,7 +155,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private View mRoutePanel;              // 科技感信息面板
     private boolean mPermissionRequested = false;  // 定位权限是否已请求
     private TextView mPanelSpeed, mPanelWalked, mPanelRemain, mPanelPct;
+    private TextView mPanelTime, mPanelPace;
     private ProgressBar mPanelProgress;
+    private long mRouteStartTime = 0;        // 路线开始运行时间戳
+    private long mPauseAccumMs = 0;          // 累计暂停时长
+    private long mLastPauseStart = 0;        // 本次进入暂停的时间点
     private Button mPanelBtnWalk, mPanelBtnRun, mPanelBtnBike;
     private ImageButton mButtonRoute;
     private TextView mRouteProgressView;
@@ -193,7 +190,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private ListView mSearchHistoryList;
     private LinearLayout mHistoryLayout;
     private MenuItem searchItem;
-    private Inputtips mInputtips;
     /*============================== 更新 相关 ==============================*/
     private DownloadManager mDownloadManager = null;
     private long mDownloadId;
@@ -220,6 +216,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mOkHttpClient = new OkHttpClient();
 
         initNavigationView();
+
+        // 高德 MapView 生命周期：必须调用 onCreate，否则地图引擎不初始化、画面白屏
+        mMapView = findViewById(R.id.bdMapView);
+        mMapView.onCreate(savedInstanceState);
 
         initMap();
 
@@ -324,6 +324,14 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     }
 
     @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (mMapView != null) {
+            mMapView.onSaveInstanceState(outState);
+        }
+    }
+
+    @Override
     public void onBackPressed() {
         moveTaskToBack(false);
     }
@@ -379,12 +387,8 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
+                //搜索功能已停用（搜索入口已移除），不再发起高德Web请求
                 try {
-                    InputtipsQuery queryObj = new InputtipsQuery(query, mCurrentCity);
-                    queryObj.setCityLimit(false);
-                    mInputtips = new Inputtips(MainActivity.this, queryObj);
-                    mInputtips.setInputtipsListener(MainActivity.this::onInputtipsResult);
-                    mInputtips.requestInputtipsAsyn();
                     //搜索历史 插表参数
                     ContentValues contentValues = new ContentValues();
                     contentValues.put(DataBaseHistorySearch.DB_COLUMN_KEY, query);
@@ -410,16 +414,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 mHistoryLayout.setVisibility(View.INVISIBLE);
 
                 if (newText != null && !newText.isEmpty()) {
-                    try {
-                        InputtipsQuery queryObj2 = new InputtipsQuery(newText, mCurrentCity);
-                        queryObj2.setCityLimit(false);
-                        mInputtips = new Inputtips(MainActivity.this, queryObj2);
-                        mInputtips.setInputtipsListener(MainActivity.this::onInputtipsResult);
-                        mInputtips.requestInputtipsAsyn();
-                    } catch (Exception e) {
-                        GoUtils.DisplayToast(MainActivity.this, getResources().getString(R.string.app_error_search));
-                        XLog.d(getResources().getString(R.string.app_error_search));
-                    }
+                    //搜索已停用，不发起高德Web请求
                 }
 
                 return true;
@@ -497,20 +492,37 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         View headerView = mNavigationView.getHeaderView(0);
         TextView app_version = headerView.findViewById(R.id.app_version);
         app_version.setText(GoUtils.getVersionName(this));
+
+        // 分组标题（subheader）在深色背景上默认发灰，手动改为浅蓝白，保证清晰可读
+        Menu navMenu = mNavigationView.getMenu();
+        for (int i = 0; i < navMenu.size(); i++) {
+            MenuItem item = navMenu.getItem(i);
+            if (item.hasSubMenu() && item.getTitle() != null) {
+                SpannableString title = new SpannableString(item.getTitle().toString());
+                title.setSpan(new ForegroundColorSpan(0xFFB0E0F7), 0, title.length(), 0);
+                item.setTitle(title);
+            }
+        }
     }
 
     /*============================== 主界面地图 相关 ==============================*/
     private void initMap() {
+        GoApplication.writeInitLog("initMap start");
         // 地图初始化
         mMapView = findViewById(R.id.bdMapView);
+        GoApplication.writeInitLog("initMap: MapView found, mMapView=" + (mMapView == null ? "null" : "ok"));
         mAMap = mMapView.getMap();
+        GoApplication.writeInitLog("initMap: getMap, mAMap=" + (mAMap == null ? "null" : "ok"));
         mAMap.setMapType(AMap.MAP_TYPE_NORMAL);
+        GoApplication.writeInitLog("initMap: setMapType OK");
         // 隐藏右下角缩放控件
         mAMap.getUiSettings().setZoomControlsEnabled(false);
+        GoApplication.writeInitLog("initMap: uiSettings OK");
         // 地图初始定位到默认位置（山东理工职业学院操场）
         CameraUpdate initCu = CameraUpdateFactory.newCameraPosition(
                 new CameraPosition(mMarkLatLngMap, 18f, 0, 0));
         mAMap.moveCamera(initCu);
+        GoApplication.writeInitLog("initMap: moveCamera OK");
         // 打开即显示当前位置蓝点（真实定位成功后自动更新）
         if (mLocIcon == null) {
             mLocIcon = createLocIcon();
@@ -519,6 +531,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 .position(mMarkLatLngMap)
                 .icon(mLocIcon)
                 .anchor(0.5f, 0.5f));
+        GoApplication.writeInitLog("initMap: addMarker(pos) OK");
         mAMap.setOnMapTouchListener(motionEvent -> {
         });
         mAMap.setOnMapClickListener(new AMap.OnMapClickListener() {
@@ -552,7 +565,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             public void onMapLongClick(LatLng point) {
                 mMarkLatLngMap = point;
                 markMap();
-                mGeocodeSearch.getFromLocationAsyn(new RegeocodeQuery(new LatLonPoint(point.latitude, point.longitude), 200, GeocodeSearch.AMAP));
             }
         });
         mPoiView = View.inflate(MainActivity.this, R.layout.location_poi_info, null);
@@ -560,6 +572,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mPoiLongitude = mPoiView.findViewById(R.id.poi_longitude);
         mPoiLatitude = mPoiView.findViewById(R.id.poi_latitude);
         // 自定义信息气泡：统一返回 poi 气泡视图（高德通过 InfoWindowAdapter 实现）
+        GoApplication.writeInitLog("initMap: poiView inflated, setting InfoWindowAdapter");
         mAMap.setInfoWindowAdapter(new AMap.InfoWindowAdapter() {
             @Override
             public View getInfoWindow(Marker marker) {
@@ -591,41 +604,7 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         ibShare.setOnClickListener(v -> ShareUtils.shareText(MainActivity.this, "分享位置", mPoiLongitude.getText()+","+mPoiLatitude.getText()));
         ImageButton ibFly = mPoiView.findViewById(R.id.poi_fly);
         ibFly.setOnClickListener(this::doGoLocation);
-        try {
-            mGeocodeSearch = new GeocodeSearch(this);
-        } catch (AMapException e) {
-            XLog.e("GeocodeSearch init error: " + e.getMessage());
-        }
-        mGeocodeSearch.setOnGeocodeSearchListener(new GeocodeSearch.OnGeocodeSearchListener() {
-            @Override
-            public void onGeocodeSearched(GeocodeResult geoCodeResult, int rCode) {
-                if (geoCodeResult != null && geoCodeResult.getGeocodeAddressList() != null
-                        && geoCodeResult.getGeocodeAddressList().size() > 0) {
-                    XLog.i(String.valueOf(geoCodeResult.getGeocodeAddressList().get(0).getLatLonPoint()));
-                }
-            }
-
-            @Override
-            public void onRegeocodeSearched(RegeocodeResult regeocodeResult, int rCode) {
-                if (rCode != AMapException.CODE_AMAP_SUCCESS || regeocodeResult == null) {
-                    XLog.i("逆地理位置失败!");
-                } else {
-                    RegeocodeAddress address = regeocodeResult.getRegeocodeAddress();
-                    if (address == null) {
-                        return;
-                    }
-                    mMarkName = address.getFormatAddress();
-                    LatLonPoint pt = regeocodeResult.getRegeocodeQuery().getPoint();
-                    mPoiLatitude.setText(String.valueOf(pt.getLatitude()));
-                    mPoiLongitude.setText(String.valueOf(pt.getLongitude()));
-                    mPoiAddress.setText(address.getFormatAddress());
-                    if (mMarkInfoMarker != null) {
-                        mMarkInfoMarker.showInfoWindow();
-                    }
-                }
-            }
-        });
-
+        GoApplication.writeInitLog("initMap: all listeners OK");
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);// 获取传感器管理服务
         if (mSensorManager != null) {
             mSensorAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
@@ -950,6 +929,17 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mRouteEditActions = findViewById(R.id.route_edit_actions);
         findViewById(R.id.btnRouteUndo).setOnClickListener(v -> undoRoutePoint());
         findViewById(R.id.btnRouteClear).setOnClickListener(v -> clearRoute());
+        // 保存路线：退出采集模式并弹出保存（含分享）对话框
+        findViewById(R.id.btnRouteSave).setOnClickListener(v -> {
+            if (mRouteLatLngList.size() < 2) {
+                GoUtils.DisplayToast(this, getString(R.string.route_save_empty));
+                return;
+            }
+            mRouteEditMode = false;
+            drawRouteOverlay();
+            updateCollectInfo();
+            showSaveRouteDialog();
+        });
 
         initRoutePanel();
     }
@@ -965,7 +955,28 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         mPanelBtnWalk = findViewById(R.id.panel_btn_walk);
         mPanelBtnRun = findViewById(R.id.panel_btn_run);
         mPanelBtnBike = findViewById(R.id.panel_btn_bike);
+        mPanelTime = findViewById(R.id.panel_time);
+        mPanelPace = findViewById(R.id.panel_pace);
         findViewById(R.id.panel_btn_stop).setOnClickListener(v -> doGoLocation(mButtonStart));
+        // 暂停/继续：切换路线移动状态，位置停留不发起请求
+        findViewById(R.id.panel_btn_pause).setOnClickListener(v -> {
+            Button pauseBtn = (Button) v;
+            boolean toPause = !pauseBtn.isSelected();
+            pauseBtn.setSelected(toPause);
+            pauseBtn.setText(toPause ? "继续" : "暂停");
+            // 暂停/继续时累计暂停时长（暂停期间不计入用时）
+            if (toPause) {
+                mLastPauseStart = System.currentTimeMillis();
+            } else if (mLastPauseStart > 0) {
+                mPauseAccumMs += System.currentTimeMillis() - mLastPauseStart;
+                mLastPauseStart = 0;
+            }
+            if (mServiceBinder != null) {
+                mServiceBinder.setPaused(toPause);
+            } else {
+                GoUtils.DisplayToast(this, "路线未在运行");
+            }
+        });
 
         // 三档速度切换（面板内直接生效）
         mPanelBtnWalk.setOnClickListener(v -> {
@@ -1204,30 +1215,52 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             String data = wrap.toString();
             ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
             cm.setPrimaryClip(ClipData.newPlainText("route", data));
-            GoUtils.DisplayToast(this, "路线已复制到剪贴板，可粘贴分享给好友");
+            GoUtils.DisplayToast(this, "路线已复制，正在调起分享...");
+            // 调起系统分享面板，可通过微信/QQ/短信等发送
+            Intent shareIntent = new Intent(Intent.ACTION_SEND);
+            shareIntent.setType("text/plain");
+            shareIntent.putExtra(Intent.EXTRA_TEXT, data);
+            shareIntent.putExtra(Intent.EXTRA_SUBJECT, "纸飞机路线分享");
+            startActivity(Intent.createChooser(shareIntent, "分享路线到"));
         } catch (Exception e) {
             XLog.e("shareRoute error: " + e.getMessage());
         }
     }
 
-    // 导入路线：从剪贴板读取分享的路线JSON
+    // 导入路线：弹输入框，预填剪贴板内容，用户可粘贴/编辑后确认
     private void importRouteFromClipboard() {
+        final android.widget.EditText input = new android.widget.EditText(this);
+        input.setHint("粘贴或输入好友分享的路线数据（JSON格式）");
+        input.setSingleLine(false);
+        input.setMinLines(3);
+        input.setGravity(android.view.Gravity.TOP);
+        input.setPadding(40, 30, 40, 30);
+        input.setTextSize(13);
+
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("导入分享路线")
+                .setMessage("复制好友分享的路线文本后，长按输入框粘贴到此处：")
+                .setView(input)
+                .setPositiveButton("导入", (d, w) -> doImportRoute(input.getText().toString()))
+                .setNegativeButton("取消", null)
+                .show();
+    }
+
+    // 实际执行路线导入
+    private void doImportRoute(String data) {
         try {
-            ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            ClipData clip = cm.getPrimaryClip();
-            if (clip == null || clip.getItemCount() == 0) {
-                GoUtils.DisplayToast(this, "剪贴板为空，请先复制分享的路线");
+            if (data == null || data.trim().isEmpty()) {
+                GoUtils.DisplayToast(this, "路线数据为空");
                 return;
             }
-            String data = clip.getItemAt(0).getText().toString();
-            org.json.JSONObject wrap = new org.json.JSONObject(data);
+            org.json.JSONObject wrap = new org.json.JSONObject(data.trim());
             if (!"zhifeiji_route".equals(wrap.optString("type"))) {
-                GoUtils.DisplayToast(this, "剪贴板内容不是有效的路线数据");
+                GoUtils.DisplayToast(this, "不是有效的路线数据（缺少 type 标识）");
                 return;
             }
             org.json.JSONArray points = wrap.getJSONArray("points");
             if (points.length() < 2) {
-                GoUtils.DisplayToast(this, "路线点数不足");
+                GoUtils.DisplayToast(this, "路线点数不足（至少2个点）");
                 return;
             }
             mRouteLatLngList.clear();
@@ -1240,10 +1273,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             updateCollectInfo();
             GoUtils.DisplayToast(this, "路线导入成功：" + mRouteLatLngList.size() + " 点，"
                     + formatDistance(routeTotalMeters()));
-            showSaveRouteDialog();  // 导入后询问是否保存到本地
+            showSaveRouteDialog();
         } catch (Exception e) {
             XLog.e("importRoute error: " + e.getMessage());
-            GoUtils.DisplayToast(this, "路线导入失败，数据格式不正确");
+            GoUtils.DisplayToast(this, "路线导入失败：数据格式不正确");
         }
     }
 
@@ -1315,9 +1348,12 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         }
         final java.util.List<String> finalNames = names;
         new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("选择路线")
-                .setItems(displayArray, (dialog, which) -> loadRoute(finalNames.get(which)))
-                .setPositiveButton("加载并运行", (dialog, which) -> showRunRouteDialog(finalNames))
+                .setTitle("选择路线（点列表项=加载并运行）")
+                .setItems(displayArray, (dialog, which) -> {
+                    loadRoute(finalNames.get(which));
+                    showRunRouteDialog(finalNames);
+                })
+                .setPositiveButton("导入路线", (dialog, which) -> importRouteFromClipboard())
                 .setNeutralButton("删除路线", (dialog, which) -> showDeleteRouteDialog(finalNames))
                 .setNegativeButton("取消", null)
                 .show();
@@ -1435,7 +1471,15 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             }
             // 路线跑完后恢复底部三按钮
             setBottomBarVisible(true);
+            // 重置计时
+            mRouteStartTime = 0;
+            mPauseAccumMs = 0;
+            mLastPauseStart = 0;
             return;
+        }
+        // 首次检测到运行时记录开始时间
+        if (mRouteStartTime == 0) {
+            mRouteStartTime = System.currentTimeMillis();
         }
         double total = mServiceBinder.getRouteTotalDistance();
         double remain = mServiceBinder.getRouteRemainingDistance();
@@ -1458,6 +1502,24 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             }
             mPanelPct.setText(pct + "%");
             mPanelProgress.setProgress(pct);
+
+            // 用时（扣除暂停时长）
+            long now = System.currentTimeMillis();
+            long activeMs = mRouteStartTime > 0 ? (now - mRouteStartTime - mPauseAccumMs) : 0;
+            if (activeMs < 0) activeMs = 0;
+            long totalSec = activeMs / 1000;
+            mPanelTime.setText(String.format("%02d:%02d", totalSec / 60, totalSec % 60));
+
+            // 配速：分/公里
+            if (walked > 0 && totalSec > 0) {
+                double paceMinPerKm = (totalSec / 60.0) / (walked / 1000.0);
+                int paceM = (int) paceMinPerKm;
+                int paceS = (int) Math.round((paceMinPerKm - paceM) * 60);
+                if (paceS >= 60) { paceM += 1; paceS = 0; }
+                mPanelPace.setText(String.format("%d'%02d\"/km", paceM, paceS));
+            } else {
+                mPanelPace.setText("0'00\"/km");
+            }
         }
 
         // 让地图蓝点跟随模拟位置移动：把服务的当前位置(wgs84)转成GCJ02更新到地图
@@ -1891,46 +1953,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                     .show();
             return true;
         });
-        // 设置搜索建议返回值监听（高德 Inputtips）
-        mInputtips = new Inputtips(this, new InputtipsQuery("", null));
-    }
-
-    // 高德输入提示回调：刷新候选 POI 列表
-    private void onInputtipsResult(List<Tip> tipList, int rCode) {
-        if (rCode == AMapException.CODE_AMAP_SUCCESS && tipList != null && !tipList.isEmpty()) {
-            List<Map<String, Object>> data = getMapList(tipList);
-
-            SimpleAdapter simAdapt = new SimpleAdapter(
-                    MainActivity.this,
-                    data,
-                    R.layout.search_poi_item,
-                    new String[] {POI_NAME, POI_ADDRESS, POI_LONGITUDE, POI_LATITUDE}, // 与下面数组元素要一一对应
-                    new int[] {R.id.poi_name, R.id.poi_address, R.id.poi_longitude, R.id.poi_latitude});
-            mSearchList.setAdapter(simAdapt);
-            mSearchLayout.setVisibility(View.VISIBLE);
-        } else {
-            GoUtils.DisplayToast(this, getResources().getString(R.string.app_search_null));
-        }
-    }
-
-    @NonNull
-    private static List<Map<String, Object>> getMapList(List<Tip> tipList) {
-        List<Map<String, Object>> data = new ArrayList<>();
-
-        for (Tip tip : tipList) {
-            LatLonPoint pt = tip.getPoint();
-            if (pt == null) {
-                continue;
-            }
-
-            Map<String, Object> poiItem = new HashMap<>();
-            poiItem.put(POI_NAME, tip.getName());
-            poiItem.put(POI_ADDRESS, tip.getAddress() + " " + tip.getDistrict());
-            poiItem.put(POI_LONGITUDE, "" + pt.getLongitude());
-            poiItem.put(POI_LATITUDE, "" + pt.getLatitude());
-            data.add(poiItem);
-        }
-        return data;
     }
 
     /*============================== 更新 相关 ==============================*/

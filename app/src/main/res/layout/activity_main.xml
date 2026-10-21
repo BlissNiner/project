@@ -19,7 +19,6 @@
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:background="#0B1020"
-        android:theme="@style/NavDrawerTheme"
         app:headerLayout="@layout/nav_header"
         app:itemIconTint="@color/nav_item_icon"
         app:itemTextColor="@color/nav_item_text"

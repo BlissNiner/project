@@ -53,7 +53,8 @@ public class ServiceGo extends Service {
     private final List<double[]> mRoutePoints = new ArrayList<>();  // 每个元素为 {lng, lat}
     private int mRouteIndex = 0;                                     // 当前正在前往的路径点下标
     private boolean mRouteMode = false;                              // 是否开启路线跟随
-    private boolean mRouteLoop = false;                              // 是否循环走路线
+    private boolean mRouteLoop = false;
+    private boolean mPaused = false;                              // 是否循环走路线
     private static final double ROUTE_ARRIVE_THRESHOLD = 0.5D;      // 距离路径点多近算“到达”，单位 m
     private static final int HANDLER_MSG_ID = 0;
     private static final String SERVICE_GO_HANDLER_NAME = "ServiceGoLocation";
@@ -161,7 +162,7 @@ public class ServiceGo extends Service {
 
                     if (!isStop) {
                         // 若开启了路线跟随，则沿路径点移动位置
-                        if (mRouteMode) {
+                        if (mRouteMode && !mPaused) {
                             stepAlongRoute();
                         }
                         setLocationNetwork();
@@ -213,6 +214,21 @@ public class ServiceGo extends Service {
         mRouteMode = false;
         mRouteIndex = 0;
         mRoutePoints.clear();
+        mPaused = false;
+    }
+
+    /**
+     * 暂停/继续路线移动（位置停留，不发起额外请求）。
+     */
+    public void setPaused(boolean paused) {
+        mPaused = paused;
+    }
+
+    /**
+     * 当前是否处于暂停状态。
+     */
+    public boolean isPaused() {
+        return mPaused;
     }
 
     /**
@@ -513,6 +529,16 @@ public class ServiceGo extends Service {
         // 停止路线跟随
         public void stopRoute() {
             ServiceGo.this.stopRoute();
+        }
+
+        // 暂停/继续路线移动
+        public void setPaused(boolean paused) {
+            ServiceGo.this.setPaused(paused);
+        }
+
+        // 查询是否暂停
+        public boolean isPaused() {
+            return ServiceGo.this.isPaused();
         }
 
         // 查询路线跟随状态

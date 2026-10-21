@@ -31,7 +31,7 @@ android {
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion 32
         versionCode 1123
-        versionName '1.0.5' // https://semver.org/lang/zh-CN/
+        versionName '1.1.3' // https://semver.org/lang/zh-CN/
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         resourceConfigurations += ['zh', 'zh-rCN']
         ndk {
@@ -43,9 +43,9 @@ android {
 
     buildTypes {
         release {
-            // 高德SDK重度依赖反射与原生库，R8混淆/资源裁剪会破坏其运行，release暂不启用
-            minifyEnabled = false
-            shrinkResources = false
+            // 开启R8混淆+资源裁剪压缩APK体积，高德SDK已在proguard-rules.pro中完整keep
+            minifyEnabled = true
+            shrinkResources = true
 
             // Includes the default ProGuard rules files that are packaged with
             // the Android Gradle plugin. To learn more, go to the section about

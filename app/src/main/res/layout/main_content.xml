@@ -60,13 +60,19 @@
                     android:contentDescription="启动"
                     android:padding="9dp"
                     app:srcCompat="@drawable/ic_position"
-                    app:tint="#0288D1" />
+                    app:tint="#4CAF50" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="启动"
-                    android:textSize="11sp"
-                    android:textColor="#E0F7FA"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/bottom_label_bg"
+                    android:paddingLeft="8dp"
+                    android:paddingRight="8dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
                     android:layout_marginTop="3dp" />
             </LinearLayout>
 
@@ -85,13 +91,19 @@
                     android:contentDescription="绘制路线"
                     android:padding="9dp"
                     app:srcCompat="@drawable/ic_move"
-                    app:tint="#0288D1" />
+                    app:tint="#42A5F5" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="画路线"
-                    android:textSize="11sp"
-                    android:textColor="#E0F7FA"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/bottom_label_bg"
+                    android:paddingLeft="8dp"
+                    android:paddingRight="8dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
                     android:layout_marginTop="3dp" />
             </LinearLayout>
 
@@ -110,13 +122,19 @@
                     android:contentDescription="选择路线"
                     android:padding="9dp"
                     app:srcCompat="@android:drawable/ic_menu_recent_history"
-                    app:tint="#0288D1" />
+                    app:tint="#FFA726" />
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="选路线"
-                    android:textSize="11sp"
-                    android:textColor="#E0F7FA"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/bottom_label_bg"
+                    android:paddingLeft="8dp"
+                    android:paddingRight="8dp"
+                    android:paddingTop="2dp"
+                    android:paddingBottom="2dp"
                     android:layout_marginTop="3dp" />
             </LinearLayout>
 

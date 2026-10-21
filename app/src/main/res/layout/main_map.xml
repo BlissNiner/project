@@ -40,8 +40,8 @@
                 android:background="@drawable/map_type_btn_selector"
                 android:gravity="center"
                 android:text="@string/map_pic_normal"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
+                android:textColor="@color/map_type_text"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
             <RadioButton
@@ -52,8 +52,8 @@
                 android:background="@drawable/map_type_btn_selector"
                 android:gravity="center"
                 android:text="@string/map_pic_sate"
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
+                android:textColor="@color/map_type_text"
+                android:textSize="14sp"
                 android:textStyle="bold" />
         </RadioGroup>
 
@@ -190,6 +190,19 @@
                 android:text="✕ 清空"
                 android:textColor="#D32F2F"
                 android:textSize="12sp"
+                android:paddingLeft="12dp"
+                android:paddingRight="12dp"
+                android:layout_marginEnd="8dp" />
+
+            <Button
+                android:id="@+id/btnRouteSave"
+                android:layout_width="wrap_content"
+                android:layout_height="36dp"
+                android:background="@drawable/round_btn_bg"
+                android:text="✓ 保存路线"
+                android:textColor="#4CAF50"
+                android:textSize="12sp"
+                android:textStyle="bold"
                 android:paddingLeft="12dp"
                 android:paddingRight="12dp" />
         </LinearLayout>

@@ -149,7 +149,72 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 操作行：调速 + 结束 -->
+    <!-- 第二行：用时 / 配速 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="用时"
+                android:textColor="#90A4AE"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/panel_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="#3354D4F0"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="4dp" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:gravity="center">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="配速"
+                android:textColor="#90A4AE"
+                android:textSize="10sp" />
+
+            <TextView
+                android:id="@+id/panel_pace"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0&#39;00&quot;/km"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:layout_marginTop="2dp" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- 操作行：调速 + 暂停 + 结束 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -198,10 +263,22 @@
             android:textSize="12sp" />
 
         <Button
-            android:id="@+id/panel_btn_stop"
+            android:id="@+id/panel_btn_pause"
             android:layout_width="wrap_content"
             android:layout_height="34dp"
             android:layout_marginStart="10dp"
+            android:background="@drawable/panel_pause_btn"
+            android:text="暂停"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:paddingLeft="14dp"
+            android:paddingRight="14dp" />
+
+        <Button
+            android:id="@+id/panel_btn_stop"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:layout_marginStart="6dp"
             android:background="@drawable/panel_stop_btn"
             android:text="结束"
             android:textColor="#FFFFFF"

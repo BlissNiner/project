@@ -2,14 +2,17 @@
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_checked="true">
         <shape android:shape="rectangle">
-            <solid android:color="#0288D1" />
-            <corners android:radius="8dp" />
+            <gradient
+                android:startColor="#2196F3"
+                android:endColor="#1565C0"
+                android:angle="270" />
+            <corners android:radius="18dp" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
             <solid android:color="#00000000" />
-            <corners android:radius="8dp" />
+            <corners android:radius="18dp" />
         </shape>
     </item>
 </selector>

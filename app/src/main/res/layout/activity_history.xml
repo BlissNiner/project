@@ -31,6 +31,7 @@
         android:layout_height="wrap_content"
         android:text="@string/history_idle"
         android:textSize="17sp"
+        android:textColor="#80FFFFFF"
         android:padding="10dp"
         android:textAlignment="center"
         android:layout_gravity="center"/>

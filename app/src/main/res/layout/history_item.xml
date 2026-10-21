@@ -21,21 +21,26 @@
         android:layout_height="wrap_content"
         android:ellipsize="end"
         android:lines="1"
-        android:textSize="18sp" />
+        android:textSize="18sp"
+        android:textColor="#FFFFFF" />
 
     <TextView
         android:id="@+id/TimeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:ellipsize="end"
-        android:lines="1"/>
+        android:lines="1"
+        android:textSize="12sp"
+        android:textColor="#80FFFFFF" />
 
     <TextView
         android:id="@+id/WGSLatLngText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:ellipsize="end"
-        android:lines="1" />
+        android:lines="1"
+        android:textSize="12sp"
+        android:textColor="#80D8FF" />
 
     <TextView
         android:id="@+id/BDLatLngText"

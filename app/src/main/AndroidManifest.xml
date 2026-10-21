@@ -57,6 +57,11 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- 高德 SDK Key（search/geocode 等服务从 manifest 读取） -->
+        <meta-data
+            android:name="com.amap.api.v2.apikey"
+            android:value="58bec9c73d7303159038f69dee30ae5d" />
+
         <uses-library
             android:name="org.apache.http.legacy"
             android:required="false" />
@@ -82,6 +87,10 @@
                 android:resource="@xml/provider_paths" />
         </provider>
 
+        <activity
+            android:name=".CrashActivity"
+            android:exported="false"
+            android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".WelcomeActivity"
             android:exported="true"

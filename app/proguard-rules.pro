@@ -32,3 +32,15 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
+
+# 高德SDK混淆补充
+-keepattributes *Annotation*,InnerClasses,Signature,EnclosingMethod
+-keep class com.amap.api.maps.**{*;}
+-keep class com.amap.api.services.**{*;}
+-keep class com.amap.api.location.**{*;}
+
+# 项目核心类不混淆（避免反射/序列化问题）
+-keep class com.zcshou.gogogo.**{*;}
+-keep class com.zcshou.service.**{*;}
+-keep class com.zcshou.utils.**{*;}
+-keep class com.zcshou.database.**{*;}
