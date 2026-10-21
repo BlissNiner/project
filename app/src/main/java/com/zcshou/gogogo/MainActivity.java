@@ -764,6 +764,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
         ImageButton curPosBtn = this.findViewById(R.id.cur_position);
         curPosBtn.setOnClickListener(v -> {
+            // 仅点击"当前位置"时提示开启GPS
+            if (!GoUtils.isGpsOpened(this)) {
+                GoUtils.showEnableGpsDialog(this);
+                return;
+            }
             // 强制请求一次定位，再复位地图
             if (mLocClient != null) {
                 mLocClient.startLocation();
@@ -1180,6 +1185,9 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
         final android.widget.EditText input = new android.widget.EditText(this);
         input.setHint(getString(R.string.route_save_hint));
         input.setSingleLine();
+        // 默认不聚焦，避免软键盘弹起盖住底部的"分享路线"按钮；点输入框时才弹键盘
+        input.setFocusable(false);
+        input.setFocusableInTouchMode(true);
         new androidx.appcompat.app.AlertDialog.Builder(this)
                 .setTitle(getString(R.string.route_save))
                 .setView(input)
@@ -1619,11 +1627,6 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
     private void doGoLocation(View v) {
         if (!GoUtils.isNetworkAvailable(this)) {
             GoUtils.DisplayToast(this, getResources().getString(R.string.app_error_network));
-            return;
-        }
-
-        if (!GoUtils.isGpsOpened(this)) {
-            GoUtils.showEnableGpsDialog(this);
             return;
         }
 
