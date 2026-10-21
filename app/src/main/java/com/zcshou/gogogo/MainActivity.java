@@ -375,10 +375,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
             @Override
             public boolean onQueryTextSubmit(String query) {
                 try {
-                    mSuggestionSearch.requestSuggestion((new SuggestionSearchOption())
-                            .keyword(query)
-                            .city(mCurrentCity)
-                    );
+                    SuggestionSearchOption searchOpt = new SuggestionSearchOption().keyword(query);
+                    if (mCurrentCity != null && !mCurrentCity.isEmpty()) {
+                        searchOpt.city(mCurrentCity);
+                    }
+                    mSuggestionSearch.requestSuggestion(searchOpt);
                     //搜索历史 插表参数
                     ContentValues contentValues = new ContentValues();
                     contentValues.put(DataBaseHistorySearch.DB_COLUMN_KEY, query);
@@ -405,10 +406,11 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
 
                 if (newText != null && !newText.isEmpty()) {
                     try {
-                        mSuggestionSearch.requestSuggestion((new SuggestionSearchOption())
-                                .keyword(newText)
-                                .city(mCurrentCity)
-                        );
+                        SuggestionSearchOption searchOpt2 = new SuggestionSearchOption().keyword(newText);
+                        if (mCurrentCity != null && !mCurrentCity.isEmpty()) {
+                            searchOpt2.city(mCurrentCity);
+                        }
+                        mSuggestionSearch.requestSuggestion(searchOpt2);
                     } catch (Exception e) {
                         GoUtils.DisplayToast(MainActivity.this, getResources().getString(R.string.app_error_search));
                         XLog.d(getResources().getString(R.string.app_error_search));
@@ -642,6 +644,10 @@ public class MainActivity extends BaseActivity implements SensorEventListener {
                 @Override
                 public void onReceiveLocation(BDLocation bdLocation) {
                     if (bdLocation == null || mMapView == null) {// mapview 销毁后不在处理新接收的位置
+                        return;
+                    }
+                    // 过滤无效定位：经纬度为0通常是定位失败，会把蓝点跳到非洲赤道(0,0)
+                    if (bdLocation.getLatitude() == 0.0 && bdLocation.getLongitude() == 0.0) {
                         return;
                     }
 
